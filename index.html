@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bruno Lopes - Toolkit</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;color:#16191f;min-height:100vh}
+header{background:#232f3e;color:white;padding:16px 24px;display:flex;align-items:center;gap:12px}
+header h1{font-size:20px;font-weight:700}
+header .accent{color:#ff9900}
+.container{max-width:900px;margin:40px auto;padding:0 24px}
+.section-title{font-size:13px;font-weight:700;color:#5f6b7a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+.card{background:white;border-radius:12px;padding:24px;border:1px solid #d5dbdb;display:flex;flex-direction:column;align-items:center;text-align:center;text-decoration:none;color:inherit;transition:all .15s;min-height:140px;justify-content:center;position:relative}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);border-color:#0972d3}
+.card h3{font-size:15px;font-weight:700;color:#0972d3;margin:12px 0 6px}
+.card p{font-size:12px;color:#5f6b7a;line-height:1.4}
+.badge-new{position:absolute;top:8px;right:8px;background:#1d8102;color:white;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.icon{width:28px;height:28px;stroke:#0972d3;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+footer{text-align:center;padding:32px;color:#5f6b7a;font-size:11px}
+@media(max-width:768px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:#ff9900"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+<h1><span class="accent">BRUNOKKTRO</span>'s TOOLKIT</h1>
+</header>
+<div class="container">
+<div class="section-title">Tools</div>
+<div class="grid">
+<a class="card" href="/karpenter-ui/">
+<span class="badge-new">New</span>
+<svg class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="8" height="6" rx="1"/><rect x="14" y="3" width="8" height="6" rx="1"/><rect x="8" y="15" width="8" height="6" rx="1"/><path d="M6 9v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9"/><line x1="12" y1="13" x2="12" y2="15"/></svg>
+<h3>Karpenter UI</h3>
+<p>Visual YAML builder for NodePool & EC2NodeClass manifests.</p>
+</a>
+<a class="card" href="/timer/">
+<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3L2 6"/><path d="M22 6l-3-3"/><line x1="12" y1="1" x2="12" y2="3"/></svg>
+<h3>Timer</h3>
+<p>Focus timer with ambient backgrounds.</p>
+</a>
+</div>
+</div>
+<footer>brunokktro.github.io - Bruno Lopes</footer>
+</body>
+</html>

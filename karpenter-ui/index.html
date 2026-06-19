@@ -1,0 +1,3476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karpenter UI - YAML Manifest Builder</title>
+<style>
+  :root{
+    --blue:#0972d3; --blue-hover:#065299; --blue-active:#033160;
+    --ink:#0f1b2d; --text:#16191f; --muted:#5f6b7a; --muted2:#7d8998;
+    --border:#e9ebed; --border-strong:#c6c6cd; --bg:#f1f3f3; --nav:#232f3e;
+    --green:#037f0c; --green-bg:#f2fcf3; --red:#d91515; --red-bg:#fdf3f1;
+    --amber:#8d6605; --amber-bg:#fff8e7;
+    --purple:#7d2ae8; --orange:#ff9900;
+    --karp:#5f259f; --karp-soft:#f4eefb;
+    --yaml-bg:#1b2433; --yaml-border:#0f1623;
+    --yaml-key:#82aaff; --yaml-str:#c3e88d; --yaml-num:#f78c6c;
+    --yaml-bool:#ff6b9d; --yaml-cmt:#637480; --yaml-anchor:#ffcb6b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:"Amazon Ember","Helvetica Neue",Roboto,Arial,sans-serif;font-size:14px;line-height:1.45;}
+  svg{display:inline-block;vertical-align:middle;}
+
+  /* Top navigation */
+  .topnav{background:var(--nav);color:#fff;height:56px;display:flex;align-items:center;
+          padding:0 24px;gap:14px;box-shadow:0 1px 2px rgba(0,0,0,.2);position:sticky;top:0;z-index:50;}
+  .topnav .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;}
+  .topnav .brand .logo{color:var(--orange);}
+  .topnav .sub{color:#8d98a8;font-size:13px;}
+  .topnav .spacer{flex:1;}
+  .topnav .meta{color:#d1d5db;font-size:13px;display:flex;align-items:center;gap:6px;}
+
+  .tabs{display:flex;gap:4px;background:rgba(255,255,255,.06);padding:4px;border-radius:10px;}
+  .tab{padding:6px 14px;border-radius:7px;font-size:13px;font-weight:600;color:#cfd6e0;cursor:pointer;
+       border:none;background:transparent;display:inline-flex;align-items:center;gap:6px;}
+  .tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .tab:hover:not(.active){color:#fff;background:rgba(255,255,255,.05);}
+
+  /* Buttons (Cloudscape) */
+  .btn{display:inline-flex;align-items:center;gap:7px;border-radius:20px;padding:7px 16px;
+       font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent;
+       font-family:inherit;transition:background .15s,border-color .15s;white-space:nowrap;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-primary:hover{background:var(--blue-hover);}
+  .btn-primary:active{background:var(--blue-active);}
+  .btn-normal{background:#fff;color:var(--blue);border-color:var(--blue);}
+  .btn-normal:hover{background:#f2f8fd;}
+  .btn-ghost{background:transparent;color:#fff;border-color:#5f6b7a;}
+  .btn-ghost:hover{background:rgba(255,255,255,.08);}
+  .btn-danger{background:transparent;color:#ff9c8a;border-color:#7a4a44;}
+  .btn-danger:hover{background:rgba(217,21,21,.15);}
+  .btn-sm{padding:4px 10px;font-size:12px;border-radius:14px;}
+  .btn-icon{padding:6px;border-radius:8px;background:transparent;border:1px solid var(--border-strong);
+            color:var(--muted);cursor:pointer;font-family:inherit;}
+  .btn-icon:hover{background:#f2f8fd;color:var(--blue);border-color:var(--blue);}
+  .btn-add{background:var(--karp-soft);color:var(--karp);border:1px dashed var(--karp);
+           padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;
+           font-family:inherit;display:inline-flex;align-items:center;gap:6px;width:100%;justify-content:center;}
+  .btn-add:hover{background:#ebdaff;}
+  .btn-remove{background:transparent;color:var(--red);border:1px solid #f3c0bc;border-radius:8px;
+              padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;
+              display:inline-flex;align-items:center;gap:4px;}
+  .btn-remove:hover{background:var(--red-bg);}
+
+  /* Layout */
+  .layout-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;
+                padding:18px 22px;align-items:stretch;height:calc(100vh - 56px);}
+  @media (max-width:1100px){ .layout-split{grid-template-columns:1fr;height:auto;} }
+
+  .pane{background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+        box-shadow:0 1px 4px rgba(0,7,22,.06);overflow:hidden;display:flex;flex-direction:column;min-height:0;}
+  .pane-hd{display:flex;align-items:center;gap:9px;padding:12px 18px;border-bottom:1px solid var(--border);
+           background:#fbfbfc;flex-shrink:0;}
+  .pane-hd .ttl{font-size:14px;font-weight:700;color:var(--ink);}
+  .pane-hd .sub{font-size:12px;color:var(--muted);margin-left:auto;}
+  .pane-hd .ico{color:var(--karp);}
+  .pane-bd{padding:18px 20px;overflow-y:auto;flex:1;min-height:0;}
+
+  /* Form sections */
+  .section{margin-bottom:22px;border:1px solid var(--border);border-radius:10px;background:#fff;}
+  .section-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;
+              background:#fafbfc;border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;
+              user-select:none;}
+  .section.collapsed .section-hd{border-bottom:none;border-radius:10px;}
+  .section-hd .ttl{font-size:13px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px;}
+  .section-hd .ico{color:var(--karp);}
+  .section-hd .chevron{margin-left:auto;color:var(--muted);transition:transform .15s;}
+  .section.collapsed .section-hd .chevron{transform:rotate(-90deg);}
+  .section-bd{padding:14px;}
+  .section.collapsed .section-bd{display:none;}
+
+  /* Form fields */
+  label{display:block;font-size:12px;font-weight:700;color:var(--text);margin:10px 0 4px;}
+  label:first-child{margin-top:0;}
+  label .req{color:var(--red);margin-left:2px;}
+  select,input,textarea{width:100%;padding:7px 10px;border:1px solid var(--border-strong);border-radius:8px;
+               font-size:13px;font-family:inherit;color:var(--text);background:#fff;}
+  select:focus,input:focus,textarea:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue);}
+  textarea{font-family:Menlo,Consolas,monospace;font-size:12px;resize:vertical;min-height:80px;}
+  input[type="checkbox"]{width:auto;}
+  input[type="number"]{font-variant-numeric:tabular-nums;}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:5px;align-items:flex-start;}
+  .hint svg{flex-shrink:0;margin-top:1px;}
+
+  .row{display:flex;gap:8px;align-items:flex-end;}
+  .row > *{flex:1;}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .row-grow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:end;}
+
+  /* Repeater (add+ lists) */
+  .repeater{display:flex;flex-direction:column;gap:8px;}
+  .rep-item{background:#fafbfc;border:1px solid var(--border);border-radius:8px;padding:10px;position:relative;}
+  .rep-item-hd{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .rep-item-hd .label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+  .rep-item-hd .spacer{flex:1;}
+
+  /* Toggles */
+  .seg{display:inline-flex;background:#f0f1f3;border-radius:7px;padding:2px;}
+  .seg button{background:transparent;border:none;padding:5px 12px;font-size:12px;font-weight:600;
+              color:var(--muted);border-radius:5px;cursor:pointer;font-family:inherit;}
+  .seg button.active{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+
+  /* Chip */
+  .chip{display:inline-flex;align-items:center;gap:4px;background:#f0f6ff;color:#033160;border:1px solid #b8d8f8;
+        border-radius:14px;padding:2px 10px;font-size:11px;font-weight:600;}
+  .chip-karp{background:var(--karp-soft);color:var(--karp);border-color:#d4b8ee;}
+  .chip-warn{background:var(--amber-bg);color:var(--amber);border-color:#f0d68a;}
+
+  /* YAML pane */
+  .yaml-pane{background:var(--yaml-bg);border:1px solid var(--yaml-border);}
+  .yaml-pane .pane-hd{background:#0f1623;border-bottom:1px solid #2a3447;color:#cfd6e0;}
+  .yaml-pane .pane-hd .ttl{color:#fff;font-family:Menlo,Consolas,monospace;font-size:12px;}
+  .yaml-pane .pane-hd .ico{color:var(--orange);}
+  .yaml-pane .pane-bd{padding:0;background:var(--yaml-bg);}
+  .yaml-pre{margin:0;padding:18px 22px;font-family:Menlo,"SF Mono",Consolas,monospace;font-size:12.5px;
+            line-height:1.55;color:#e1e7ef;white-space:pre;tab-size:2;overflow:auto;height:100%;}
+  .k-key{color:var(--yaml-key);}
+  .k-str{color:var(--yaml-str);}
+  .k-num{color:var(--yaml-num);}
+  .k-bool{color:var(--yaml-bool);}
+  .k-cmt{color:var(--yaml-cmt);font-style:italic;}
+  .k-doc{color:var(--yaml-anchor);}
+  .k-dash{color:var(--yaml-cmt);}
+
+  /* Cron builder */
+  .cron-builder{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px;}
+  .cron-preview{font-family:Menlo,Consolas,monospace;font-size:12px;color:var(--karp);
+                background:var(--karp-soft);padding:6px 10px;border-radius:6px;margin-top:8px;
+                display:flex;align-items:center;gap:8px;}
+  .cron-preview .cron-text{flex:1;color:var(--text);font-family:inherit;font-size:11px;}
+
+  /* Filename input */
+  .fn{font-family:Menlo,Consolas,monospace;font-size:12px;color:#e1e7ef;background:#0f1623;
+      padding:4px 10px;border-radius:6px;border:1px solid #2a3447;}
+
+  /* Instance Family pills grid */
+  .fam-grid{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;}
+  .fam-actions{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  .fam-actions .lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;
+                    letter-spacing:.3px;flex:1;}
+  .fam-cat{margin-bottom:10px;}
+  .fam-cat:last-child{margin-bottom:0;}
+  .fam-cat-ttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+               color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .fam-cat-ttl::after{content:"";flex:1;height:1px;background:var(--border);}
+  .fam-pills{display:flex;flex-wrap:wrap;gap:5px;}
+  .fam-pill{padding:3px 11px;border:1px solid var(--border-strong);background:#fff;color:var(--text);
+            border-radius:14px;font-size:11px;font-family:Menlo,Consolas,monospace;cursor:pointer;
+            font-weight:600;transition:all .12s;user-select:none;}
+  .fam-pill:hover{background:#f2f8fd;border-color:var(--blue);color:var(--blue);}
+  .fam-pill.on{background:var(--karp);color:#fff;border-color:var(--karp);}
+  .fam-pill.on:hover{background:var(--karp);filter:brightness(1.1);}
+  .fam-search{margin-bottom:10px;}
+
+  /* Validator */
+  .validator{padding:10px 16px;border-top:1px solid #2a3447;background:#0f1623;color:#cfd6e0;
+             font-size:12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .validator.valid{background:#0c2818;border-top-color:#1d4f2f;color:#9ce5a8;}
+  .validator.errors{background:#2c0f10;border-top-color:#5b1d1f;color:#ffb3a8;}
+  .validator.warns{background:#2c2511;border-top-color:#5b4a1d;color:#ffd57a;}
+  .validator .v-hd{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;}
+  .validator .v-hd .v-count{font-family:Menlo,Consolas,monospace;font-size:11px;}
+  .validator .v-list{margin:4px 0 0;padding-left:18px;list-style:none;}
+  .validator .v-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start;font-size:11.5px;line-height:1.5;}
+  .validator .v-list .v-bullet{flex:0 0 14px;}
+  .validator.collapsed .v-list{display:none;}
+  .validator .v-err{color:#ffb3a8;}
+  .validator .v-warn{color:#ffd57a;}
+  .validator .v-ok{color:#9ce5a8;}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,27,45,.55);z-index:200;display:flex;align-items:center;justify-content:center;}
+  .modal{background:#fff;border-radius:14px;width:min(720px,92vw);max-height:88vh;box-shadow:0 20px 60px rgba(0,0,0,.3);
+         display:flex;flex-direction:column;overflow:hidden;}
+  .modal-hd{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .modal-hd .ttl{font-size:15px;font-weight:700;color:var(--ink);}
+  .modal-hd .ico{color:var(--karp);}
+  .modal-hd .x{margin-left:auto;background:transparent;border:none;cursor:pointer;color:var(--muted);
+               padding:4px;border-radius:6px;font-family:inherit;}
+  .modal-hd .x:hover{background:var(--bg);color:var(--text);}
+  .modal-bd{padding:18px 20px;overflow-y:auto;flex:1;}
+  .modal-ft{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:#fbfbfc;}
+  .modal textarea{font-family:Menlo,Consolas,monospace;font-size:12px;min-height:280px;}
+  .import-status{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12.5px;display:none;}
+  .import-status.ok{background:var(--green-bg);color:var(--green);border:1px solid #9ce5a8;display:block;}
+  .import-status.err{background:var(--red-bg);color:var(--red);border:1px solid #f3c0bc;display:block;}
+  .import-tip{font-size:11.5px;color:var(--muted);margin-top:8px;display:flex;gap:6px;align-items:flex-start;}
+
+  /* Diff view */
+  .yaml-pre.diff .diff-add{background:rgba(70,160,90,.18);display:block;}
+  .yaml-pre.diff .diff-del{background:rgba(217,21,21,.18);display:block;text-decoration:line-through;opacity:.7;}
+  .yaml-pre.diff .diff-ctx{opacity:.55;display:block;}
+  .diff-toolbar{padding:8px 16px;background:#0f1623;border-bottom:1px solid #2a3447;color:#cfd6e0;
+                font-size:11.5px;display:flex;align-items:center;gap:10px;}
+  .diff-toolbar .badge-add{background:rgba(70,160,90,.25);color:#9ce5a8;padding:2px 8px;border-radius:10px;font-weight:700;}
+  .diff-toolbar .badge-del{background:rgba(217,21,21,.25);color:#ffb3a8;padding:2px 8px;border-radius:10px;font-weight:700;}
+
+  /* Combobox (key picker) */
+  .combo{position:relative;}
+  .combo-input{display:flex;align-items:stretch;}
+  .combo-input input{border-radius:8px 0 0 8px;border-right:none;}
+  .combo-input button{background:#fff;border:1px solid var(--border-strong);border-left:none;
+                       border-radius:0 8px 8px 0;padding:0 10px;cursor:pointer;color:var(--muted);
+                       font-family:inherit;}
+  .combo-input button:hover{background:#f2f8fd;color:var(--blue);}
+  .combo-pop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border-strong);
+             border-radius:8px;margin-top:4px;box-shadow:0 8px 24px rgba(0,7,22,.12);
+             max-height:340px;overflow-y:auto;z-index:30;display:none;}
+  .combo.open .combo-pop{display:block;}
+  .combo-cat{padding:6px 12px 4px;font-size:10px;font-weight:700;text-transform:uppercase;
+             letter-spacing:.5px;color:var(--muted);background:#fafbfc;border-bottom:1px solid var(--border);
+             position:sticky;top:0;}
+  .combo-opt{padding:7px 12px;cursor:pointer;border-bottom:1px solid #f5f5f7;}
+  .combo-opt:hover,.combo-opt.hl{background:#f0f6ff;}
+  .combo-opt .k{font-family:Menlo,Consolas,monospace;font-size:12px;color:var(--ink);font-weight:600;}
+  .combo-opt .d{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35;}
+  .combo-opt .v{font-size:10.5px;color:var(--karp);margin-top:2px;font-family:Menlo,Consolas,monospace;}
+  .combo-opt .v::before{content:"e.g. ";opacity:.6;}
+  .combo-empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px;}
+  .combo-create{padding:9px 12px;background:var(--karp-soft);color:var(--karp);font-size:12px;font-weight:600;
+                cursor:pointer;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+  .combo-create:hover{background:#ebdaff;}
+  .combo-create code{background:#fff;padding:1px 6px;border-radius:4px;border:1px solid #d4b8ee;}
+
+  /* File picker in import modal */
+  .import-actions{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+  .import-actions .filebtn{position:relative;overflow:hidden;}
+  .import-actions .filebtn input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .import-actions .fname{font-size:11.5px;color:var(--muted);font-family:Menlo,Consolas,monospace;}
+  .import-actions .or{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+
+  /* Schedule visualizer */
+  .schedule-viz{margin-top:18px;padding:12px;background:#fff;border:1px solid var(--border);border-radius:10px;}
+  .schedule-viz .sv-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .schedule-viz .sv-hd .ttl{font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px;}
+  .schedule-viz .sv-hd .sub{font-size:11px;color:var(--muted);margin-left:auto;}
+  .schedule-svg{width:100%;height:auto;display:block;}
+  .schedule-svg .grid-bg{fill:#fafbfc;}
+  .schedule-svg .cell-empty{fill:#f0f1f3;}
+  .schedule-svg .grid-line{stroke:#e9ebed;stroke-width:1;}
+  .schedule-svg .grid-line-h{stroke:#dfe2e5;stroke-width:1;}
+  .schedule-svg .axis-label{font-size:9.5px;fill:var(--muted);font-family:Menlo,Consolas,monospace;}
+  .schedule-svg .day-label{font-size:10px;fill:var(--text);font-weight:700;text-anchor:end;}
+  .schedule-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .schedule-legend .item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text);
+                         padding:3px 10px;border-radius:14px;background:#fafbfc;border:1px solid var(--border);}
+  .schedule-legend .item .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .schedule-legend .item .meta{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="brand">
+    <svg class="logo" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+    Karpenter UI
+  </div>
+  <span class="sub">YAML Manifest Builder &middot; v1</span>
+
+  <div class="tabs" role="tablist" style="margin-left:18px;">
+    <button class="tab active" data-view="nodepool" onclick="setView('nodepool')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      NodePool
+    </button>
+    <button class="tab" data-view="ec2nodeclass" onclick="setView('ec2nodeclass')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      EC2NodeClass
+    </button>
+    <button class="tab" data-view="nodeoverlay" onclick="setView('nodeoverlay')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg>
+      NodeOverlay <span style="font-size:9px;background:rgba(255,153,0,.18);color:#ffb84a;padding:1px 5px;border-radius:6px;margin-left:2px;">α</span>
+    </button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <select id="presetSel" style="background:#0f1623;color:#fff;border:1px solid #2a3447;border-radius:8px;padding:6px 10px;font-size:12px;width:auto;cursor:pointer;" onchange="applyPreset(this.value)">
+    <option value="">Preset: starter (vazio)</option>
+    <optgroup label="Common patterns">
+      <option value="spot-mixed">Spot + On-Demand mix</option>
+      <option value="ondemand">On-Demand only</option>
+      <option value="spot">Spot only</option>
+      <option value="gpu">GPU workloads (g5/p4)</option>
+      <option value="bottlerocket">Bottlerocket AL2023</option>
+      <option value="graviton">Graviton (arm64)</option>
+    </optgroup>
+    <optgroup label="aws-samples blueprints">
+      <option value="bp-disruption-budget">Disruption Budgets (block 24h)</option>
+      <option value="bp-multi-ebs">Multi-EBS (Bottlerocket + 2 vols)</option>
+      <option value="bp-od-spot-split">OD/Spot Split (capacity-spread)</option>
+      <option value="bp-odcr-reserved">ODCR Reserved Capacity</option>
+      <option value="bp-reserved-instances">Reserved Instances (RI/SP)</option>
+      <option value="bp-soci-snapshotter">SOCI Snapshotter (high IOPS)</option>
+      <option value="bp-static-pool">Static NodePool (replicas)</option>
+      <option value="bp-custom-ami">Custom AMI (name selector)</option>
+    </optgroup>
+    <optgroup label="NodeOverlay (alpha)">
+      <option value="bp-overlay-prefer-newer">Prefer newer generations (priceAdjustment)</option>
+      <option value="bp-overlay-gpu-slices">GPU time-slicing (capacity override)</option>
+    </optgroup>
+  </select>
+
+  <button class="btn btn-ghost btn-sm" onclick="copyYAML()" title="Copiar YAML">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Copy
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="downloadYAML()" title="Download .yaml">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="downloadCombined()" title="Download NodePool + EC2NodeClass combined">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16l-4 4-4-4"/><path d="M16 8l-4-4-4 4"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    Combine
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="openImport()" title="Import existing YAML">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Import
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="toggleDiff()" id="diffBtn" title="Toggle diff view">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+    Diff
+  </button>
+  <button class="btn btn-danger btn-sm" onclick="resetForm()" title="Reset">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    Reset
+  </button>
+</div>
+
+<div class="layout-split">
+
+  <!-- ============ FORM PANE ============ -->
+  <div class="pane">
+    <div class="pane-hd">
+      <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <div class="ttl" id="formTitle">NodePool Editor</div>
+      <span class="sub" id="formSub">Configure provisioning constraints &amp; disruption</span>
+    </div>
+    <div class="pane-bd" id="formBody">
+      <!-- Rendered dynamically by render() -->
+    </div>
+  </div>
+
+  <!-- ============ YAML PANE ============ -->
+  <div class="pane yaml-pane">
+    <div class="pane-hd">
+      <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      <div class="ttl" id="yamlFile">nodepool.yaml</div>
+      <span class="sub" id="yamlMeta">live preview</span>
+    </div>
+    <div class="pane-bd">
+      <div class="diff-toolbar" id="diffToolbar" style="display:none;">
+        <span>Diff vs original (imported/baseline)</span>
+        <span class="badge-add" id="diffAdds">+0</span>
+        <span class="badge-del" id="diffDels">-0</span>
+        <span style="margin-left:auto;opacity:.7;">click "Diff" again to exit</span>
+      </div>
+      <pre class="yaml-pre" id="yamlPre"><code id="yamlOut"></code></pre>
+    </div>
+    <div id="validator"></div>
+  </div>
+
+</div>
+
+<!-- Import Modal -->
+<div class="modal-bg" id="importModal" style="display:none;" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <div class="modal-hd">
+      <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="ttl">Import existing YAML</span>
+      <button class="x" onclick="closeImport()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text);">Paste a Karpenter <code>NodePool</code> or <code>EC2NodeClass</code> manifest, or pick a <code>.yaml</code> file. The form will be populated and the YAML rewritten in our format.</p>
+      <div class="import-actions">
+        <label class="btn btn-normal btn-sm filebtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Choose .yaml file...
+          <input type="file" accept=".yaml,.yml,text/yaml,text/plain" onchange="loadImportFile(event)">
+        </label>
+        <span class="or">or paste below</span>
+        <span class="fname" id="importFname"></span>
+      </div>
+      <textarea id="importYaml" placeholder="apiVersion: karpenter.sh/v1&#10;kind: NodePool&#10;metadata:&#10;  name: my-pool&#10;..." style="width:100%;"></textarea>
+      <div id="importStatus" class="import-status"></div>
+      <div class="import-tip">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Multi-document YAML (with <code>---</code>) is supported - first matching document wins. The current view will receive the imported data.</span>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-normal btn-sm" onclick="closeImport()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="doImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const STATE = {
+  view: 'nodepool',
+  nodepool: {
+    name: 'default',
+    labels: [],
+    annotations: [],
+    tplLabels: [],
+    tplAnnotations: [],
+    requirements: [
+      { key: 'kubernetes.io/arch', op: 'In', values: ['amd64'] },
+      { key: 'kubernetes.io/os', op: 'In', values: ['linux'] },
+      { key: 'karpenter.sh/capacity-type', op: 'In', values: ['on-demand', 'spot'] },
+      { key: 'karpenter.k8s.aws/instance-category', op: 'In', values: ['c', 'm', 'r'] },
+      { key: 'karpenter.k8s.aws/instance-generation', op: 'Gt', values: ['2'] }
+    ],
+    nodeClassRefName: 'default',
+    taints: [],
+    startupTaints: [],
+    expireAfter: '720h',
+    terminationGracePeriod: '',
+    disruption: {
+      consolidationPolicy: 'WhenEmptyOrUnderutilized',
+      consolidateAfter: '0s',
+      budgets: [
+        { nodes: '10%', reasons: [], schedule: '', duration: '' }
+      ]
+    },
+    limits: { cpu: '1000', memory: '1000Gi' },
+    customLimits: [],
+    weight: '',
+    replicas: '',
+    limitsNodes: ''
+  },
+  ec2nodeclass: {
+    name: 'default',
+    amiFamily: 'AL2023',
+    amiSelectorTerms: [
+      { type: 'alias', value: 'al2023@latest' }
+    ],
+    subnetSelectorTerms: [
+      { type: 'tags', tags: [{ k: 'karpenter.sh/discovery', v: 'CLUSTER_NAME' }] }
+    ],
+    securityGroupSelectorTerms: [
+      { type: 'tags', tags: [{ k: 'karpenter.sh/discovery', v: 'CLUSTER_NAME' }] }
+    ],
+    capacityReservationSelectorTerms: [],
+    role: 'KarpenterNodeRole-CLUSTER_NAME',
+    blockDeviceMappings: [],
+    instanceStorePolicy: '',
+    detailedMonitoring: false,
+    metadataOptions: {
+      httpEndpoint: 'enabled',
+      httpProtocolIPv6: 'disabled',
+      httpPutResponseHopLimit: 1,
+      httpTokens: 'required'
+    },
+    tags: [],
+    userData: ''
+  },
+  nodeoverlay: {
+    name: 'overlay-default',
+    weight: '10',
+    requirements: [
+      { key: 'karpenter.sh/nodepool', op: 'In', values: ['default'] }
+    ],
+    pricingMode: 'priceAdjustment',  // 'priceAdjustment' | 'price' | 'none'
+    priceAdjustment: '+10%',
+    price: '',
+    capacity: []
+  }
+};
+
+// ============================================================
+//  ICONS (SVG inline)
+// ============================================================
+const ICONS = {
+  plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  trash: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  chevron: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  info: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  tag: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+  layers: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  cpu: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  shield: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  clock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  zap: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  hdd: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>',
+  network: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  key: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  code: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  calendar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  scissors: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>'
+};
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function uuid(){ return Math.random().toString(36).slice(2,9); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function $(sel){ return document.querySelector(sel); }
+
+
+// ============================================================
+//  SECTION TEMPLATE HELPER
+// ============================================================
+function section(opts){
+  const { id, title, icon, body, collapsed=false } = opts;
+  return `
+    <div class="section${collapsed?' collapsed':''}" data-sec="${id}">
+      <div class="section-hd" onclick="toggleSection('${id}')">
+        <span class="ico">${icon}</span>
+        <span class="ttl">${title}</span>
+        <span class="chevron">${ICONS.chevron}</span>
+      </div>
+      <div class="section-bd">${body}</div>
+    </div>`;
+}
+function toggleSection(id){
+  const s = document.querySelector(`[data-sec="${id}"]`);
+  if(s) s.classList.toggle('collapsed');
+}
+
+// ============================================================
+//  COMMON FIELDS
+// ============================================================
+function kvRow(item, idx, listKey, keyPlaceholder='key', valPlaceholder='value'){
+  return `
+    <div class="rep-item" data-idx="${idx}">
+      <div class="row-grow">
+        <input value="${esc(item.k)}" placeholder="${keyPlaceholder}" oninput="updateKV('${listKey}',${idx},'k',this.value)">
+        <input value="${esc(item.v)}" placeholder="${valPlaceholder}" oninput="updateKV('${listKey}',${idx},'v',this.value)">
+        <button class="btn-remove" onclick="removeItem('${listKey}',${idx})">${ICONS.trash}</button>
+      </div>
+    </div>`;
+}
+function updateKV(listKey, idx, field, val){
+  const list = getNested(listKey);
+  if(list && list[idx]){ list[idx][field] = val; render(); }
+}
+function getNested(path){
+  const parts = path.split('.');
+  let cur = STATE;
+  for(const p of parts) cur = cur?.[p];
+  return cur;
+}
+function setNested(path, val){
+  const parts = path.split('.');
+  const last = parts.pop();
+  let cur = STATE;
+  for(const p of parts) cur = cur[p];
+  cur[last] = val;
+  render();
+}
+function addToList(listKey, defaultObj){
+  let list = getNested(listKey);
+  // Defensive: if the list is missing (e.g. legacy localStorage state from before the field existed),
+  // initialize it on the parent path before pushing.
+  if(!Array.isArray(list)){
+    const parts = listKey.split('.');
+    const last = parts.pop();
+    let cur = STATE;
+    for(const p of parts){ if(cur[p] == null) cur[p] = {}; cur = cur[p]; }
+    cur[last] = [];
+    list = cur[last];
+  }
+  list.push(JSON.parse(JSON.stringify(defaultObj)));
+  render();
+}
+function removeItem(listKey, idx){
+  const list = getNested(listKey);
+  list.splice(idx, 1);
+  render();
+}
+
+// ============================================================
+//  KEY CATALOG (Karpenter + K8s well-known)
+// ============================================================
+const KEY_CATALOG = [
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-category',     desc:'EC2 instance category', vals:'c, m, r, g, p, i' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-family',       desc:'EC2 instance family',   vals:'c5, m6i, r6g (UI shows pills)' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-size',         desc:'Size suffix of the instance', vals:'large, xlarge, 2xlarge' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-generation',   desc:'Generation number (use Gt/Lt)', vals:'2, 3, 4 (Gt 2 = >gen 2)' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-cpu',          desc:'vCPU count', vals:'4, 8, 16, 32' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-memory',       desc:'RAM in MiB', vals:'8192, 16384' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-hypervisor',   desc:'Hypervisor type', vals:'nitro, xen' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-ebs-bandwidth',     desc:'Max EBS bandwidth in Mbps', vals:'4750, 9500' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-network-bandwidth', desc:'Network baseline in Mbps', vals:'1250, 25000' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-encryption-in-transit-supported', desc:'Inter-instance traffic encryption', vals:'true, false' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-local-nvme',   desc:'Local NVMe disk size in GB', vals:'75, 150, 1900' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-gpu-name',          desc:'GPU model', vals:'a10g, t4, h100' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-gpu-count',         desc:'GPUs per instance', vals:'1, 4, 8' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-gpu-manufacturer',  desc:'GPU vendor', vals:'nvidia, amd, aws' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-gpu-memory',        desc:'GPU memory in MiB', vals:'24576, 81920' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-accelerator-name',         desc:'Accelerator (Inferentia/Trainium)', vals:'inferentia, trainium' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-accelerator-count',        desc:'Accelerators per instance', vals:'1, 16' },
+  { cat:'Karpenter AWS',     key:'karpenter.k8s.aws/instance-accelerator-manufacturer', desc:'Accelerator vendor', vals:'aws' },
+
+  { cat:'Karpenter common',  key:'karpenter.sh/capacity-type', desc:'Spot, on-demand, or reserved (ODCR)', vals:'spot, on-demand, reserved' },
+  { cat:'Karpenter common',  key:'karpenter.sh/nodepool',      desc:'Target a specific NodePool by name (NodeOverlay)', vals:'team-alpha' },
+
+  { cat:'Kubernetes well-known', key:'kubernetes.io/arch', desc:'CPU architecture', vals:'amd64, arm64' },
+  { cat:'Kubernetes well-known', key:'kubernetes.io/os',   desc:'Operating system', vals:'linux, windows' },
+  { cat:'Kubernetes well-known', key:'kubernetes.io/hostname', desc:'Node DNS hostname (rarely used in NodePool)', vals:'ip-10-0-1-23' },
+  { cat:'Kubernetes well-known', key:'node.kubernetes.io/instance-type', desc:'Specific EC2 instance type', vals:'c5.xlarge, m6i.large' },
+  { cat:'Kubernetes well-known', key:'topology.kubernetes.io/zone',   desc:'Availability Zone', vals:'us-east-1a, sa-east-1b' },
+  { cat:'Kubernetes well-known', key:'topology.kubernetes.io/region', desc:'AWS region', vals:'us-east-1' },
+  { cat:'Kubernetes well-known', key:'topology.k8s.aws/zone-id',      desc:'AZ ID (stable across accounts)', vals:'use1-az1' },
+];
+
+let _comboState = { openIdx: -1, query: '', hl: 0, listKey: null };
+
+function renderKeyCombo(idx, currentKey, listKey){
+  return `
+    <div class="combo" data-combo="${listKey}-${idx}">
+      <div class="combo-input">
+        <input type="text" value="${esc(currentKey)}"
+               placeholder="Click to browse or type a custom key..."
+               onfocus="openCombo(${idx}, '${listKey}')"
+               oninput="filterCombo(${idx}, '${listKey}', this.value)"
+               onkeydown="comboKeydown(event, ${idx}, '${listKey}')"
+               onblur="closeComboLater()">
+        <button type="button" onmousedown="toggleCombo(event, ${idx}, '${listKey}')" tabindex="-1" title="Browse keys">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="combo-pop"></div>
+    </div>`;
+}
+
+function openCombo(idx, listKey){
+  closeAllCombos();
+  _comboState.openIdx = idx;
+  _comboState.listKey = listKey;
+  _comboState.query = '';
+  const node = document.querySelector(`[data-combo="${listKey}-${idx}"]`);
+  if(node){
+    node.classList.add('open');
+    refreshComboPop(idx, listKey);
+  }
+}
+function closeAllCombos(){
+  document.querySelectorAll('.combo.open').forEach(c=>c.classList.remove('open'));
+}
+function toggleCombo(e, idx, listKey){
+  e.preventDefault();
+  const node = document.querySelector(`[data-combo="${listKey}-${idx}"]`);
+  if(!node) return;
+  if(node.classList.contains('open')){
+    node.classList.remove('open');
+    _comboState.openIdx = -1;
+  } else {
+    openCombo(idx, listKey);
+    // Focus the input
+    const inp = node.querySelector('.combo-input input');
+    if(inp) inp.focus();
+  }
+}
+function filterCombo(idx, listKey, value){
+  _comboState.query = value;
+  // Update the actual key in state (keeps YAML in sync as user types)
+  if(listKey === 'nodepool.requirements'){
+    STATE.nodepool.requirements[idx].key = value;
+    if(value === 'karpenter.k8s.aws/instance-family'){
+      STATE.nodepool.requirements[idx].op = 'In';
+    }
+  } else if(listKey === 'nodeoverlay.requirements'){
+    STATE.nodeoverlay.requirements[idx].key = value;
+    if(value === 'karpenter.k8s.aws/instance-family'){
+      STATE.nodeoverlay.requirements[idx].op = 'In';
+    }
+  }
+  // Refresh YAML pane only (no full re-render -> preserves input focus)
+  refreshYAMLOnly();
+  // Refresh the combo popup contents (filtered list)
+  refreshComboPop(idx, listKey);
+}
+function refreshComboPop(idx, listKey){
+  const node = document.querySelector(`[data-combo="${listKey}-${idx}"]`);
+  if(!node) return;
+  const pop = node.querySelector('.combo-pop');
+  if(!pop) return;
+  pop.innerHTML = buildComboPopHTML(idx, listKey);
+}
+function buildComboPopHTML(idx, listKey){
+  const q = (_comboState.query || '').toLowerCase();
+  const opts = KEY_CATALOG.filter(o => !q || o.key.toLowerCase().includes(q) || o.desc.toLowerCase().includes(q));
+  const byCat = {};
+  opts.forEach(o=>{ (byCat[o.cat] = byCat[o.cat] || []).push(o); });
+  let html = '';
+  Object.entries(byCat).forEach(([cat, items])=>{
+    html += `<div class="combo-cat">${esc(cat)}</div>`;
+    items.forEach(o=>{
+      html += `
+        <div class="combo-opt" onmousedown="selectComboKey(${idx}, '${listKey}', '${esc(o.key)}')">
+          <div class="k">${esc(o.key)}</div>
+          <div class="d">${esc(o.desc)}</div>
+          <div class="v">${esc(o.vals)}</div>
+        </div>`;
+    });
+  });
+  if(opts.length === 0){
+    html = `<div class="combo-empty">No matching key for "${esc(_comboState.query)}"</div>`;
+  }
+  // Allow creating a custom key from the current input
+  const inputVal = _comboState.query;
+  const isCustom = inputVal && !KEY_CATALOG.some(o=>o.key === inputVal);
+  if(isCustom){
+    html += `
+      <div class="combo-create" onmousedown="selectComboKey(${idx}, '${listKey}', '${esc(inputVal)}')">
+        ${ICONS.plus} Use custom key <code>${esc(inputVal)}</code>
+      </div>`;
+  }
+  return html;
+}
+function refreshYAMLOnly(){
+  const yaml = currentYAML();
+  const yamlPre = document.getElementById('yamlPre');
+  const diffToolbar = document.getElementById('diffToolbar');
+  if(BASELINE.on && BASELINE.set){
+    yamlPre.classList.add('diff');
+    diffToolbar.style.display = 'flex';
+    document.getElementById('yamlOut').innerHTML = renderDiff(yaml);
+  } else {
+    yamlPre.classList.remove('diff');
+    diffToolbar.style.display = 'none';
+    document.getElementById('yamlOut').innerHTML = highlightYAML(yaml);
+  }
+  document.getElementById('validator').innerHTML = renderValidator();
+}
+function selectComboKey(idx, listKey, key){
+  if(listKey === 'nodepool.requirements'){
+    STATE.nodepool.requirements[idx].key = key;
+    if(key === 'karpenter.k8s.aws/instance-family'){
+      STATE.nodepool.requirements[idx].op = 'In';
+    }
+  } else if(listKey === 'nodeoverlay.requirements'){
+    STATE.nodeoverlay.requirements[idx].key = key;
+    if(key === 'karpenter.k8s.aws/instance-family'){
+      STATE.nodeoverlay.requirements[idx].op = 'In';
+    }
+  }
+  _comboState.openIdx = -1;
+  _comboState.listKey = null;
+  _comboState.query = '';
+  // Full re-render needed because instance-family swaps to pills grid
+  render();
+}
+function closeComboLater(){
+  setTimeout(()=>{
+    if(_comboState.openIdx !== -1){
+      _comboState.openIdx = -1;
+      _comboState.listKey = null;
+      _comboState.query = '';
+      closeAllCombos();
+    }
+  }, 180);
+}
+function comboKeydown(e, idx, listKey){
+  if(e.key === 'Escape'){
+    _comboState.openIdx = -1;
+    _comboState.listKey = null;
+    closeAllCombos();
+    e.target.blur();
+  }
+}
+function rerenderForm(){
+  const body = document.getElementById('formBody');
+  if(STATE.view === 'nodepool') body.innerHTML = renderNodePool();
+  else body.innerHTML = renderEC2NodeClass();
+}
+
+// ============================================================
+//  NODEPOOL FORM
+// ============================================================
+function renderNodePool(){
+  const np = STATE.nodepool;
+
+  // ---- Section: Metadata ----
+  const metaBody = `
+    <label>NodePool name <span class="req">*</span></label>
+    <input value="${esc(np.name)}" oninput="setNested('nodepool.name', this.value)" placeholder="default">
+    <div class="hint">${ICONS.info}<span>Resource name. Must be a valid DNS-1123 label.</span></div>
+
+    <label style="margin-top:14px;">Labels (top-level)</label>
+    <div class="repeater">
+      ${np.labels.map((it,i)=>kvRow(it,i,'nodepool.labels','team','platform')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.labels',{k:'',v:''})">${ICONS.plus} Add label</button>
+
+    <label style="margin-top:14px;">Annotations (top-level)</label>
+    <div class="repeater">
+      ${np.annotations.map((it,i)=>kvRow(it,i,'nodepool.annotations','example.com/note','value')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.annotations',{k:'',v:''})">${ICONS.plus} Add annotation</button>
+  `;
+
+  // ---- Section: Template Metadata ----
+  const tplMetaBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Labels &amp; annotations applied to <b>every Node</b> Karpenter creates from this NodePool.</span></div>
+    <label>Node labels</label>
+    <div class="repeater">
+      ${np.tplLabels.map((it,i)=>kvRow(it,i,'nodepool.tplLabels','workload','batch')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.tplLabels',{k:'',v:''})">${ICONS.plus} Add node label</button>
+
+    <label style="margin-top:14px;">Node annotations</label>
+    <div class="repeater">
+      ${np.tplAnnotations.map((it,i)=>kvRow(it,i,'nodepool.tplAnnotations','example.com/foo','bar')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.tplAnnotations',{k:'',v:''})">${ICONS.plus} Add node annotation</button>
+  `;
+
+  // ---- Section: Requirements ----
+  const REQ_KEYS = [
+    'kubernetes.io/arch', 'kubernetes.io/os',
+    'karpenter.sh/capacity-type',
+    'node.kubernetes.io/instance-type',
+    'karpenter.k8s.aws/instance-category',
+    'karpenter.k8s.aws/instance-family',
+    'karpenter.k8s.aws/instance-size',
+    'karpenter.k8s.aws/instance-generation',
+    'karpenter.k8s.aws/instance-cpu',
+    'karpenter.k8s.aws/instance-memory',
+    'karpenter.k8s.aws/instance-hypervisor',
+    'karpenter.k8s.aws/instance-gpu-name',
+    'karpenter.k8s.aws/instance-gpu-count',
+    'karpenter.k8s.aws/instance-gpu-manufacturer',
+    'topology.kubernetes.io/zone'
+  ];
+  const reqBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Constraints used by Karpenter to filter eligible instance types. <b>Combine</b> for tighter selection.</span></div>
+    <div class="repeater">
+      ${np.requirements.map((r,i)=>{
+        const isFamily = r.key === 'karpenter.k8s.aws/instance-family';
+        const isExistsLike = r.op==='Exists' || r.op==='DoesNotExist';
+        return `
+        <div class="rep-item">
+          <div class="row" style="align-items:flex-start;">
+            <div style="flex:2;">
+              <div class="rep-item-hd"><span class="label">key</span></div>
+              ${renderKeyCombo(i, r.key, 'nodepool.requirements')}
+            </div>
+            <div style="flex:1;max-width:140px;">
+              <div class="rep-item-hd"><span class="label">operator</span></div>
+              <select onchange="updateReq(${i},'op',this.value)">
+                ${['In','NotIn','Exists','DoesNotExist','Gt','Lt'].map(o=>`<option value="${o}" ${r.op===o?'selected':''}>${o}</option>`).join('')}
+              </select>
+            </div>
+            <div style="flex:0 0 auto;align-self:flex-end;padding-bottom:1px;">
+              <button class="btn-remove" onclick="removeItem('nodepool.requirements',${i})">${ICONS.trash}</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="rep-item-hd"><span class="label">values${isFamily?' (instance families)':' (comma-separated)'}</span></div>
+            ${isFamily
+              ? renderFamilyGrid(i, r.values||[])
+              : `<input value="${esc((r.values||[]).join(', '))}" placeholder="amd64, arm64" oninput="updateReqVals(${i}, this.value)" ${isExistsLike?'disabled style="opacity:.5;"':''}>`
+            }
+          </div>
+        </div>
+      `;}).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.requirements',{key:'',op:'In',values:[]})">${ICONS.plus} Add requirement</button>
+  `;
+
+  // ---- Section: NodeClassRef ----
+  const ncRefBody = `
+    <label>EC2NodeClass name <span class="req">*</span></label>
+    <input value="${esc(np.nodeClassRefName)}" oninput="setNested('nodepool.nodeClassRefName', this.value)" placeholder="default">
+    <div class="hint">${ICONS.info}<span>Must reference an existing <b>EC2NodeClass</b>. Switch to the EC2NodeClass tab to edit.</span></div>
+  `;
+
+  // ---- Section: Taints ----
+  const taintBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Pods need matching <b>tolerations</b> to schedule. Common for dedicated/GPU pools.</span></div>
+    <div class="repeater">
+      ${np.taints.map((t,i)=>renderTaint(t,i,'nodepool.taints')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.taints',{key:'',value:'',effect:'NoSchedule'})">${ICONS.plus} Add taint</button>
+
+    <label style="margin-top:18px;">Startup taints</label>
+    <div class="hint" style="margin-bottom:8px;">${ICONS.info}<span>Applied at boot, removed once another controller signals readiness (e.g. Cilium).</span></div>
+    <div class="repeater">
+      ${np.startupTaints.map((t,i)=>renderTaint(t,i,'nodepool.startupTaints')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.startupTaints',{key:'',value:'',effect:'NoSchedule'})">${ICONS.plus} Add startup taint</button>
+  `;
+
+  // ---- Section: Lifecycle ----
+  const lifecycleBody = `
+    <label>expireAfter</label>
+    <div class="row">
+      <select onchange="setNested('nodepool.expireAfter', this.value)" style="flex:1;">
+        ${['Never','24h','168h','336h','720h','2160h'].map(v=>`<option value="${v}" ${np.expireAfter===v?'selected':''}>${v}${v==='720h'?' (default 30d)':v==='168h'?' (7d)':v==='336h'?' (14d)':v==='2160h'?' (90d)':''}</option>`).join('')}
+        <option value="__custom__" ${!['Never','24h','168h','336h','720h','2160h'].includes(np.expireAfter)?'selected':''}>Custom...</option>
+      </select>
+      <input value="${esc(np.expireAfter)}" placeholder="e.g. 30m, 24h, 7d, Never" oninput="setNested('nodepool.expireAfter', this.value)" style="flex:1;">
+    </div>
+    <div class="hint">${ICONS.info}<span>Force node replacement after this duration. Use <b>Never</b> to disable.</span></div>
+
+    <label style="margin-top:14px;">terminationGracePeriod</label>
+    <input value="${esc(np.terminationGracePeriod)}" placeholder="e.g. 24h (optional)" oninput="setNested('nodepool.terminationGracePeriod', this.value)">
+    <div class="hint">${ICONS.info}<span>Max time pods get for graceful shutdown before forced eviction.</span></div>
+  `;
+
+  // ---- Section: Disruption ----
+  const dis = np.disruption;
+  const disruptionBody = `
+    <label>consolidationPolicy</label>
+    <select onchange="setNested('nodepool.disruption.consolidationPolicy', this.value)">
+      <option value="WhenEmpty" ${dis.consolidationPolicy==='WhenEmpty'?'selected':''}>WhenEmpty - only consolidate empty nodes</option>
+      <option value="WhenEmptyOrUnderutilized" ${dis.consolidationPolicy==='WhenEmptyOrUnderutilized'?'selected':''}>WhenEmptyOrUnderutilized - aggressive (recommended)</option>
+    </select>
+
+    <label style="margin-top:12px;">consolidateAfter</label>
+    <input value="${esc(dis.consolidateAfter)}" placeholder="0s, 30s, 1m, Never" oninput="setNested('nodepool.disruption.consolidateAfter', this.value)">
+    <div class="hint">${ICONS.info}<span>Wait time before considering consolidation. <code>0s</code> = immediate.</span></div>
+
+    <label style="margin-top:18px;display:flex;align-items:center;gap:8px;">
+      <span>Node Disruption Budgets (NDB)</span>
+      <span class="chip chip-karp">Rate-limit</span>
+    </label>
+    <div class="hint" style="margin-bottom:8px;">${ICONS.info}<span>Cap how many <b>nodes</b> Karpenter can disrupt at a time. <b>NDB</b> &ne; PodDisruptionBudget (PDB) - PDBs cap pods, NDBs cap nodes. Combine schedules to <b>block business hours</b>.</span></div>
+    <div class="repeater">
+      ${dis.budgets.map((b,i)=>renderBudget(b,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.disruption.budgets',{nodes:'10%',reasons:[],schedule:'',duration:''})">${ICONS.plus} Add NDB</button>
+    ${renderScheduleViz(dis.budgets)}
+  `;
+
+  // ---- Section: Limits & Weight ----
+  const limitsBody = `
+    <label>CPU limit (cluster-wide for this NodePool)</label>
+    <div class="row">
+      <input value="${esc(np.limits.cpu)}" placeholder="1000 or 1k" oninput="setNested('nodepool.limits.cpu', this.value)">
+      <input value="${esc(np.limits.memory)}" placeholder="1000Gi" oninput="setNested('nodepool.limits.memory', this.value)">
+    </div>
+    <div class="hint">${ICONS.info}<span>Karpenter stops provisioning when this NodePool reaches the limit. Use empty to remove a limit.</span></div>
+
+    <label style="margin-top:14px;">Custom resource limits</label>
+    <div class="hint" style="margin-bottom:6px;">${ICONS.info}<span>Limit accelerators or other resources, e.g. <code>nvidia.com/gpu: 40</code>.</span></div>
+    <div class="repeater">
+      ${(np.customLimits||[]).map((it,i)=>kvRow(it,i,'nodepool.customLimits','nvidia.com/gpu','40')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodepool.customLimits',{k:'',v:''})">${ICONS.plus} Add custom limit</button>
+
+    <label style="margin-top:14px;">Weight (0-100, optional)</label>
+    <input type="number" min="0" max="100" value="${esc(np.weight)}" placeholder="50" oninput="setNested('nodepool.weight', this.value)">
+    <div class="hint">${ICONS.info}<span>Higher weight = preferred when multiple NodePools match a pod.</span></div>
+
+    <div class="divider" style="height:1px;background:var(--border);margin:18px 0;"></div>
+
+    <label style="display:flex;align-items:center;gap:8px;">
+      <span>Static NodePool</span>
+      <span class="chip chip-karp">v1.6+</span>
+    </label>
+    <div class="hint" style="margin-bottom:6px;">${ICONS.info}<span>Set <b>replicas</b> to keep N nodes always running (independent of pods). Pair with <b>limits.nodes</b>.</span></div>
+    <div class="row">
+      <div>
+        <label style="margin:0 0 4px;">replicas</label>
+        <input type="number" min="0" value="${esc(np.replicas)}" placeholder="(empty = dynamic)" oninput="setNested('nodepool.replicas', this.value)">
+      </div>
+      <div>
+        <label style="margin:0 0 4px;">limits.nodes</label>
+        <input type="number" min="0" value="${esc(np.limitsNodes)}" placeholder="(empty = uncapped)" oninput="setNested('nodepool.limitsNodes', this.value)">
+      </div>
+    </div>
+  `;
+
+  return [
+    section({id:'meta', title:'Metadata', icon:ICONS.tag, body:metaBody}),
+    section({id:'tplmeta', title:'Node Template Metadata', icon:ICONS.layers, body:tplMetaBody, collapsed:true}),
+    section({id:'req', title:'Requirements (instance selection)', icon:ICONS.cpu, body:reqBody}),
+    section({id:'ncref', title:'NodeClassRef', icon:ICONS.shield, body:ncRefBody}),
+    section({id:'taints', title:'Taints &amp; Startup Taints', icon:ICONS.shield, body:taintBody, collapsed:true}),
+    section({id:'lifecycle', title:'Lifecycle', icon:ICONS.clock, body:lifecycleBody, collapsed:true}),
+    section({id:'disruption', title:'Disruption &amp; NDBs', icon:ICONS.zap, body:disruptionBody}),
+    section({id:'limits', title:'Limits &amp; Weight', icon:ICONS.cpu, body:limitsBody, collapsed:true})
+  ].join('');
+}
+
+function renderTaint(t, i, listKey){
+  return `
+    <div class="rep-item">
+      <div class="row-3">
+        <div>
+          <div class="rep-item-hd"><span class="label">key</span></div>
+          <input value="${esc(t.key)}" placeholder="dedicated" oninput="updateTaint('${listKey}',${i},'key',this.value)">
+        </div>
+        <div>
+          <div class="rep-item-hd"><span class="label">value</span></div>
+          <input value="${esc(t.value)}" placeholder="gpu" oninput="updateTaint('${listKey}',${i},'value',this.value)">
+        </div>
+        <div>
+          <div class="rep-item-hd"><span class="label">effect</span></div>
+          <select onchange="updateTaint('${listKey}',${i},'effect',this.value)">
+            ${['NoSchedule','PreferNoSchedule','NoExecute'].map(e=>`<option value="${e}" ${t.effect===e?'selected':''}>${e}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:6px;text-align:right;">
+        <button class="btn-remove" onclick="removeItem('${listKey}',${i})">${ICONS.trash} Remove</button>
+      </div>
+    </div>`;
+}
+function updateTaint(listKey, idx, field, val){
+  const list = getNested(listKey);
+  list[idx][field] = val;
+  render();
+}
+function updateReq(idx, field, val){
+  STATE.nodepool.requirements[idx][field] = val;
+  // If switching key to instance-family, default operator to In and clear values
+  if(field==='key' && val==='karpenter.k8s.aws/instance-family'){
+    STATE.nodepool.requirements[idx].op = 'In';
+  }
+  render();
+}
+function updateReqVals(idx, val){
+  STATE.nodepool.requirements[idx].values = val.split(',').map(s=>s.trim()).filter(Boolean);
+  render();
+}
+
+// ============================================================
+//  INSTANCE FAMILY GRID (mimicking nOps UX)
+// ============================================================
+const INSTANCE_FAMILIES = {
+  'General Purpose':  ['t3','t3a','t4g','m5','m5a','m5ad','m5d','m5dn','m5n','m5zn','m6a','m6g','m6gd','m6i','m6id','m6idn','m6in','m7a','m7g','m7gd','m7i','m8g'],
+  'Compute Optimized':['c5','c5a','c5ad','c5d','c5n','c6a','c6g','c6gd','c6gn','c6i','c6id','c6in','c7a','c7g','c7gd','c7gn','c7i','c8g'],
+  'Memory Optimized': ['r5','r5a','r5ad','r5b','r5d','r5dn','r5n','r6a','r6g','r6gd','r6i','r6id','r6idn','r6in','r7a','r7g','r7gd','r7i','r7iz','r8g','x1','x1e','x2gd','x2idn','x2iedn','x2iezn','z1d'],
+  'Storage Optimized':['d2','d3','d3en','h1','i3','i3en','i4g','i4i','im4gn','is4gen'],
+  'Accelerated':      ['g3','g3s','g4ad','g4dn','g5','g5g','g6','g6e','gr6','p2','p3','p3dn','p4d','p4de','p5','p5e','p5en','dl1','inf1','inf2','trn1','trn1n','trn2','vt1'],
+  'HPC':              ['hpc6a','hpc6id','hpc7a','hpc7g'],
+  'Burstable / Legacy':['t1','t2','m1','m2','m3','m4','c1','c3','c4','r3','r4']
+};
+
+function renderFamilyGrid(idx, selected){
+  const sel = new Set(selected);
+  const sections = Object.entries(INSTANCE_FAMILIES).map(([cat, fams])=>`
+    <div class="fam-cat">
+      <div class="fam-cat-ttl">${cat} <span style="color:var(--muted);font-weight:600;font-family:Menlo,monospace;">(${fams.filter(f=>sel.has(f)).length}/${fams.length})</span></div>
+      <div class="fam-pills">
+        ${fams.map(f=>`<span class="fam-pill ${sel.has(f)?'on':''}" onclick="toggleFamily(${idx},'${f}')">${f}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  return `
+    <div class="fam-grid">
+      <div class="fam-actions">
+        <span class="lbl">${selected.length} families selected</span>
+        <button class="btn btn-sm btn-normal" onclick="selectAllFamilies(${idx})">Select All</button>
+        <button class="btn btn-sm btn-normal" onclick="clearAllFamilies(${idx})">Clear All</button>
+      </div>
+      ${sections}
+    </div>`;
+}
+function toggleFamily(idx, fam){
+  const r = STATE.nodepool.requirements[idx];
+  r.values = r.values || [];
+  const i = r.values.indexOf(fam);
+  if(i>=0) r.values.splice(i,1); else r.values.push(fam);
+  render();
+}
+function selectAllFamilies(idx){
+  const all = Object.values(INSTANCE_FAMILIES).flat();
+  STATE.nodepool.requirements[idx].values = [...all];
+  render();
+}
+function clearAllFamilies(idx){
+  STATE.nodepool.requirements[idx].values = [];
+  render();
+}
+
+
+// ============================================================
+//  DISRUPTION BUDGET (with cron builder)
+// ============================================================
+const REASON_OPTS = ['Underutilized','Empty','Drifted'];
+
+const CRON_PRESETS = [
+  { id:'',          label:'Always (no schedule)',     cron:'',                  duration:'' },
+  { id:'biz-hours', label:'Block business hours (Mon-Fri 9-18)', cron:'0 9 * * mon-fri', duration:'9h' },
+  { id:'weekday-am',label:'Weekday mornings (Mon-Fri 8-12)',     cron:'0 8 * * mon-fri', duration:'4h' },
+  { id:'weekend',   label:'Weekends (Sat 00:00 - 48h)',          cron:'0 0 * * sat',     duration:'48h' },
+  { id:'nightly',   label:'Every night 22:00 - 8h',              cron:'0 22 * * *',      duration:'8h' },
+  { id:'monthly',   label:'1st of month 00:00 - 1h',             cron:'0 0 1 * *',       duration:'1h' },
+  { id:'custom',    label:'Custom...',                            cron:null,              duration:null }
+];
+
+function renderBudget(b, i){
+  // Detect preset match
+  let presetId = '';
+  if(!b.schedule) presetId = '';
+  else {
+    const match = CRON_PRESETS.find(p=>p.cron===b.schedule && p.duration===b.duration);
+    presetId = match ? match.id : 'custom';
+  }
+  const showCustom = presetId === 'custom';
+  const human = describeCron(b.schedule);
+
+  return `
+    <div class="rep-item">
+      <div class="rep-item-hd">
+        <span class="label">NDB #${i+1}</span>
+        <span class="spacer"></span>
+        <button class="btn-remove" onclick="removeItem('nodepool.disruption.budgets',${i})">${ICONS.trash} Remove</button>
+      </div>
+
+      <div class="row-2">
+        <div>
+          <label style="margin:0 0 4px;">nodes (count or %)</label>
+          <input value="${esc(b.nodes)}" placeholder="10% or 5" oninput="updateBudget(${i},'nodes',this.value)">
+        </div>
+        <div>
+          <label style="margin:0 0 4px;">reasons (filter)</label>
+          <div style="display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--border-strong);border-radius:8px;background:#fff;">
+            ${REASON_OPTS.map(r=>`
+              <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;margin:0;cursor:pointer;">
+                <input type="checkbox" ${b.reasons.includes(r)?'checked':''} onchange="toggleReason(${i},'${r}',this.checked)" style="margin:0;">
+                ${r}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <label style="margin-top:12px;">Schedule (when this budget is active)</label>
+      <div class="cron-builder">
+        <select onchange="applyCronPreset(${i}, this.value)">
+          ${CRON_PRESETS.map(p=>`<option value="${p.id}" ${presetId===p.id?'selected':''}>${esc(p.label)}</option>`).join('')}
+        </select>
+
+        ${showCustom ? `
+          <div class="row-2" style="margin-top:8px;">
+            <div>
+              <label style="margin:0 0 4px;font-size:11px;">cron expression</label>
+              <input value="${esc(b.schedule)}" placeholder="0 9 * * mon-fri" oninput="updateBudget(${i},'schedule',this.value)">
+            </div>
+            <div>
+              <label style="margin:0 0 4px;font-size:11px;">duration</label>
+              <input value="${esc(b.duration)}" placeholder="8h, 30m" oninput="updateBudget(${i},'duration',this.value)">
+            </div>
+          </div>
+        ` : ''}
+
+        ${b.schedule ? `
+          <div class="cron-preview">
+            ${ICONS.calendar}
+            <code>${esc(b.schedule)}</code>
+            <span class="cron-text">${esc(human)}, for <b>${esc(b.duration||'?')}</b></span>
+          </div>
+        ` : `
+          <div class="hint" style="margin-top:8px;">${ICONS.info}<span>Without a schedule this budget is <b>always active</b>.</span></div>
+        `}
+      </div>
+    </div>`;
+}
+function updateBudget(i, field, val){
+  STATE.nodepool.disruption.budgets[i][field] = val;
+  render();
+}
+function toggleReason(i, reason, on){
+  const b = STATE.nodepool.disruption.budgets[i];
+  if(on && !b.reasons.includes(reason)) b.reasons.push(reason);
+  if(!on) b.reasons = b.reasons.filter(r=>r!==reason);
+  render();
+}
+function applyCronPreset(i, presetId){
+  const p = CRON_PRESETS.find(x=>x.id===presetId);
+  const b = STATE.nodepool.disruption.budgets[i];
+  if(presetId === 'custom'){
+    if(!b.schedule) b.schedule = '0 9 * * mon-fri';
+    if(!b.duration) b.duration = '8h';
+  } else if(p){
+    b.schedule = p.cron;
+    b.duration = p.duration;
+  }
+  render();
+}
+
+// Best-effort human-readable cron description
+function describeCron(cron){
+  if(!cron) return 'Always active';
+  const parts = cron.trim().split(/\s+/);
+  if(parts.length !== 5) return 'Custom schedule';
+  const [min, hr, dom, mon, dow] = parts;
+  const dowMap = { '0':'Sun','1':'Mon','2':'Tue','3':'Wed','4':'Thu','5':'Fri','6':'Sat',
+                   sun:'Sun',mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat' };
+  const fmtDow = (s)=>{
+    if(s==='*') return 'every day';
+    if(/^[a-z]+-[a-z]+$/i.test(s)){
+      const [a,b] = s.toLowerCase().split('-');
+      return `${dowMap[a]||a}-${dowMap[b]||b}`;
+    }
+    if(s.includes(',')) return s.split(',').map(x=>dowMap[x.toLowerCase()]||x).join(',');
+    return dowMap[s.toLowerCase()] || s;
+  };
+  const time = (min!=='*'&&hr!=='*') ? `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}` : 'every hour';
+  if(dom==='*' && mon==='*'){
+    return `At ${time} ${fmtDow(dow)}`;
+  }
+  if(dow==='*'){
+    return `At ${time} on day ${dom} of month ${mon==='*'?'(every)':mon}`;
+  }
+  return `At ${time}, ${fmtDow(dow)}`;
+}
+
+// ============================================================
+//  EC2NODECLASS FORM
+// ============================================================
+function renderEC2NodeClass(){
+  const ec = STATE.ec2nodeclass;
+
+  const metaBody = `
+    <label>EC2NodeClass name <span class="req">*</span></label>
+    <input value="${esc(ec.name)}" oninput="setNested('ec2nodeclass.name', this.value)" placeholder="default">
+
+    <label style="margin-top:12px;">amiFamily</label>
+    <select onchange="setNested('ec2nodeclass.amiFamily', this.value)">
+      ${['AL2023','AL2','Bottlerocket','Ubuntu','Windows2019','Windows2022','Custom'].map(f=>`<option value="${f}" ${ec.amiFamily===f?'selected':''}>${f}</option>`).join('')}
+    </select>
+    <div class="hint">${ICONS.info}<span>Choose <code>Custom</code> when supplying your own AMI via amiSelectorTerms.</span></div>
+  `;
+
+  // ---- AMI Selector Terms ----
+  const amiBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Pick AMIs Karpenter is allowed to use. <b>alias</b> is the simplest path on AL2023.</span></div>
+    <div class="repeater">
+      ${ec.amiSelectorTerms.map((t,i)=>renderAmiSelector(t,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.amiSelectorTerms',{type:'alias',value:''})">${ICONS.plus} Add AMI selector</button>
+  `;
+
+  // ---- Subnet Selector Terms ----
+  const subnetBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Tag-based discovery is preferred. Karpenter picks the subnet with most free IPs in the AZ.</span></div>
+    <div class="repeater">
+      ${ec.subnetSelectorTerms.map((t,i)=>renderSubnetTerm(t,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.subnetSelectorTerms',{type:'tags',tags:[{k:'karpenter.sh/discovery',v:''}]})">${ICONS.plus} Add subnet selector</button>
+  `;
+
+  // ---- Security Group Selector Terms ----
+  const sgBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Same pattern as subnets. Tag <code>karpenter.sh/discovery=&lt;cluster&gt;</code> on the cluster SG works out of the box.</span></div>
+    <div class="repeater">
+      ${ec.securityGroupSelectorTerms.map((t,i)=>renderSGTerm(t,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.securityGroupSelectorTerms',{type:'tags',tags:[{k:'karpenter.sh/discovery',v:''}]})">${ICONS.plus} Add security group selector</button>
+  `;
+
+  // ---- IAM ----
+  const iamBody = `
+    <label>IAM Role name <span class="req">*</span></label>
+    <input value="${esc(ec.role)}" oninput="setNested('ec2nodeclass.role', this.value)" placeholder="KarpenterNodeRole-CLUSTER">
+    <div class="hint">${ICONS.info}<span>Karpenter creates &amp; reuses an instance profile from this role. Replace <code>CLUSTER_NAME</code>.</span></div>
+  `;
+
+  // ---- Block Device Mappings ----
+  const bdmBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Override root volume. Defaults vary by amiFamily (AL2023=20Gi, Bottlerocket=4Gi root + 20Gi data).</span></div>
+    <div class="repeater">
+      ${ec.blockDeviceMappings.map((b,i)=>renderBDM(b,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.blockDeviceMappings',{deviceName:'/dev/xvda',volumeSize:'100Gi',volumeType:'gp3',iops:'',throughput:'',encrypted:true,deleteOnTermination:true,kmsKeyID:''})">${ICONS.plus} Add block device</button>
+  `;
+
+  // ---- Metadata Options (IMDS) ----
+  const mo = ec.metadataOptions;
+  const imdsBody = `
+    <div class="row-2">
+      <div>
+        <label>httpEndpoint</label>
+        <select onchange="setNested('ec2nodeclass.metadataOptions.httpEndpoint', this.value)">
+          ${['enabled','disabled'].map(v=>`<option value="${v}" ${mo.httpEndpoint===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>httpTokens</label>
+        <select onchange="setNested('ec2nodeclass.metadataOptions.httpTokens', this.value)">
+          ${['required','optional'].map(v=>`<option value="${v}" ${mo.httpTokens===v?'selected':''}>${v}${v==='required'?' (IMDSv2)':''}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="row-2" style="margin-top:8px;">
+      <div>
+        <label>httpProtocolIPv6</label>
+        <select onchange="setNested('ec2nodeclass.metadataOptions.httpProtocolIPv6', this.value)">
+          ${['disabled','enabled'].map(v=>`<option value="${v}" ${mo.httpProtocolIPv6===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>httpPutResponseHopLimit</label>
+        <input type="number" min="1" max="64" value="${esc(mo.httpPutResponseHopLimit)}" oninput="setNested('ec2nodeclass.metadataOptions.httpPutResponseHopLimit', parseInt(this.value)||1)">
+      </div>
+    </div>
+    <div class="hint">${ICONS.info}<span>IMDSv2 (httpTokens=required) is the security best practice. Hop limit 1 blocks pod IMDS access.</span></div>
+  `;
+
+  // ---- Tags ----
+  const tagsBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Applied to every EC2 instance launched. Useful for cost allocation &amp; <code>auto-delete: no</code> protection.</span></div>
+    <div class="repeater">
+      ${ec.tags.map((it,i)=>kvRow(it,i,'ec2nodeclass.tags','Environment','prod')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.tags',{k:'',v:''})">${ICONS.plus} Add tag</button>
+  `;
+
+  // ---- UserData ----
+  const userDataBody = `
+    <div class="hint" style="margin-bottom:8px;">${ICONS.info}<span>Custom bootstrap script (MIME multipart on AL2/AL2023, TOML on Bottlerocket). Leave blank for default.</span></div>
+    <textarea placeholder="#!/bin/bash&#10;echo 'Custom userdata' >> /var/log/karpenter.log" oninput="setNested('ec2nodeclass.userData', this.value)" style="min-height:140px;">${esc(ec.userData)}</textarea>
+  `;
+
+  // ---- Capacity Reservation Selector Terms ----
+  const crBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Karpenter uses ODCRs (On-Demand Capacity Reservations) when matched. Pair with <code>capacity-type: reserved</code> in NodePool requirements.</span></div>
+    <div class="repeater">
+      ${(ec.capacityReservationSelectorTerms||[]).map((t,i)=>renderCRTerm(t,i)).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('ec2nodeclass.capacityReservationSelectorTerms',{type:'tags',tags:[{k:'intent',v:'apps'}]})">${ICONS.plus} Add capacity reservation selector</button>
+  `;
+
+  // ---- Advanced (instanceStorePolicy + detailedMonitoring) ----
+  const advBody = `
+    <label>instanceStorePolicy</label>
+    <select onchange="setNested('ec2nodeclass.instanceStorePolicy', this.value)">
+      <option value="" ${!ec.instanceStorePolicy?'selected':''}>(none) - default, ephemeral disks ignored</option>
+      <option value="RAID0" ${ec.instanceStorePolicy==='RAID0'?'selected':''}>RAID0 - format NVMe instance-store as RAID0</option>
+    </select>
+    <div class="hint">${ICONS.info}<span>Useful for high-IO workloads (image pulls, builds, ephemeral cache). Only effective on instances with NVMe instance-store.</span></div>
+
+    <label style="margin-top:12px;display:flex;align-items:center;gap:8px;font-weight:600;">
+      <input type="checkbox" ${ec.detailedMonitoring?'checked':''} onchange="setNested('ec2nodeclass.detailedMonitoring', this.checked)" style="margin:0;width:auto;">
+      detailedMonitoring (1-min EC2 metrics)
+    </label>
+    <div class="hint">${ICONS.info}<span>Adds extra cost. Default is 5-min basic monitoring.</span></div>
+  `;
+
+  return [
+    section({id:'ec2-meta', title:'Metadata &amp; AMI Family', icon:ICONS.tag, body:metaBody}),
+    section({id:'ec2-ami', title:'AMI Selector Terms', icon:ICONS.layers, body:amiBody}),
+    section({id:'ec2-subnet', title:'Subnet Selector Terms', icon:ICONS.network, body:subnetBody}),
+    section({id:'ec2-sg', title:'Security Group Selector Terms', icon:ICONS.shield, body:sgBody}),
+    section({id:'ec2-iam', title:'IAM Role', icon:ICONS.key, body:iamBody}),
+    section({id:'ec2-cr', title:'Capacity Reservation Selector Terms', icon:ICONS.zap, body:crBody, collapsed:true}),
+    section({id:'ec2-bdm', title:'Block Device Mappings', icon:ICONS.hdd, body:bdmBody, collapsed:true}),
+    section({id:'ec2-imds', title:'Metadata Options (IMDS)', icon:ICONS.shield, body:imdsBody, collapsed:true}),
+    section({id:'ec2-adv', title:'Advanced (Instance Store, Monitoring)', icon:ICONS.cpu, body:advBody, collapsed:true}),
+    section({id:'ec2-tags', title:'Tags', icon:ICONS.tag, body:tagsBody, collapsed:true}),
+    section({id:'ec2-ud', title:'User Data', icon:ICONS.code, body:userDataBody, collapsed:true})
+  ].join('');
+}
+
+function renderAmiSelector(t, i){
+  const TYPES = ['alias','id','name','ssm','tags'];
+  return `
+    <div class="rep-item">
+      <div class="rep-item-hd">
+        <span class="label">Term type</span>
+        <span class="spacer"></span>
+        <button class="btn-remove" onclick="removeItem('ec2nodeclass.amiSelectorTerms',${i})">${ICONS.trash}</button>
+      </div>
+      <div class="seg" style="margin-bottom:8px;">
+        ${TYPES.map(tp=>`<button class="${t.type===tp?'active':''}" onclick="updateAmiType(${i},'${tp}')">${tp}</button>`).join('')}
+      </div>
+      ${t.type==='tags' ? `
+        <div class="repeater">
+          ${(t.tags||[]).map((kv,j)=>`
+            <div class="row-grow">
+              <input value="${esc(kv.k)}" placeholder="tag key" oninput="updateAmiTag(${i},${j},'k',this.value)">
+              <input value="${esc(kv.v)}" placeholder="tag value" oninput="updateAmiTag(${i},${j},'v',this.value)">
+              <button class="btn-remove" onclick="removeAmiTag(${i},${j})">${ICONS.trash}</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-add" style="margin-top:6px;" onclick="addAmiTag(${i})">${ICONS.plus} Add tag pair</button>
+      ` : `
+        <input value="${esc(t.value||'')}" placeholder="${amiPlaceholder(t.type)}" oninput="updateAmiVal(${i},this.value)">
+        ${t.type==='alias' ? `<div class="hint">${ICONS.info}<span>Examples: <code>al2023@latest</code>, <code>bottlerocket@latest</code>, <code>al2023@v20240212</code></span></div>` : ''}
+      `}
+    </div>`;
+}
+function amiPlaceholder(type){
+  return {alias:'al2023@latest', id:'ami-0123456789abcdef0', name:'amazon-eks-node-1.30-*', ssm:'/aws/service/eks/optimized-ami/...'}[type] || '';
+}
+function updateAmiType(i, type){
+  const t = STATE.ec2nodeclass.amiSelectorTerms[i];
+  t.type = type;
+  if(type==='tags'){ t.tags = t.tags || [{k:'',v:''}]; delete t.value; }
+  else { t.value = t.value || ''; delete t.tags; }
+  render();
+}
+function updateAmiVal(i, v){ STATE.ec2nodeclass.amiSelectorTerms[i].value = v; render(); }
+function updateAmiTag(i, j, field, v){ STATE.ec2nodeclass.amiSelectorTerms[i].tags[j][field] = v; render(); }
+function addAmiTag(i){ STATE.ec2nodeclass.amiSelectorTerms[i].tags.push({k:'',v:''}); render(); }
+function removeAmiTag(i, j){ STATE.ec2nodeclass.amiSelectorTerms[i].tags.splice(j,1); render(); }
+
+function renderSubnetTerm(t, i){ return renderResourceSelector(t, i, 'subnetSelectorTerms', 'subnet-0123abc'); }
+function renderSGTerm(t, i){ return renderResourceSelector(t, i, 'securityGroupSelectorTerms', 'sg-0123abc', true); }
+function renderCRTerm(t, i){ return renderResourceSelector(t, i, 'capacityReservationSelectorTerms', 'cr-0123abc456'); }
+
+function renderResourceSelector(t, i, listKey, idPlaceholder, allowName=false){
+  const TYPES = allowName ? ['tags','id','name'] : ['tags','id'];
+  return `
+    <div class="rep-item">
+      <div class="rep-item-hd">
+        <span class="label">Term type</span>
+        <span class="spacer"></span>
+        <button class="btn-remove" onclick="removeItem('ec2nodeclass.${listKey}',${i})">${ICONS.trash}</button>
+      </div>
+      <div class="seg" style="margin-bottom:8px;">
+        ${TYPES.map(tp=>`<button class="${t.type===tp?'active':''}" onclick="updateSelType('${listKey}',${i},'${tp}')">${tp}</button>`).join('')}
+      </div>
+      ${t.type==='tags' ? `
+        <div class="repeater">
+          ${(t.tags||[]).map((kv,j)=>`
+            <div class="row-grow">
+              <input value="${esc(kv.k)}" placeholder="tag key" oninput="updateSelTag('${listKey}',${i},${j},'k',this.value)">
+              <input value="${esc(kv.v)}" placeholder="tag value" oninput="updateSelTag('${listKey}',${i},${j},'v',this.value)">
+              <button class="btn-remove" onclick="removeSelTag('${listKey}',${i},${j})">${ICONS.trash}</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-add" style="margin-top:6px;" onclick="addSelTag('${listKey}',${i})">${ICONS.plus} Add tag pair</button>
+      ` : `
+        <input value="${esc(t.value||'')}" placeholder="${t.type==='name'?'my-cluster-sg':idPlaceholder}" oninput="updateSelVal('${listKey}',${i},this.value)">
+      `}
+    </div>`;
+}
+function updateSelType(listKey, i, type){
+  const t = STATE.ec2nodeclass[listKey][i];
+  t.type = type;
+  if(type==='tags'){ t.tags = t.tags || [{k:'',v:''}]; delete t.value; }
+  else { t.value = t.value || ''; delete t.tags; }
+  render();
+}
+function updateSelVal(listKey, i, v){ STATE.ec2nodeclass[listKey][i].value = v; render(); }
+function updateSelTag(listKey, i, j, field, v){ STATE.ec2nodeclass[listKey][i].tags[j][field] = v; render(); }
+function addSelTag(listKey, i){ STATE.ec2nodeclass[listKey][i].tags.push({k:'',v:''}); render(); }
+function removeSelTag(listKey, i, j){ STATE.ec2nodeclass[listKey][i].tags.splice(j,1); render(); }
+
+function renderBDM(b, i){
+  return `
+    <div class="rep-item">
+      <div class="rep-item-hd">
+        <span class="label">Block device #${i+1}</span>
+        <span class="spacer"></span>
+        <button class="btn-remove" onclick="removeItem('ec2nodeclass.blockDeviceMappings',${i})">${ICONS.trash}</button>
+      </div>
+      <div class="row-2">
+        <div>
+          <label style="margin:0 0 4px;">deviceName</label>
+          <input value="${esc(b.deviceName)}" placeholder="/dev/xvda" oninput="updateBDM(${i},'deviceName',this.value)">
+        </div>
+        <div>
+          <label style="margin:0 0 4px;">volumeType</label>
+          <select onchange="updateBDM(${i},'volumeType',this.value)">
+            ${['gp3','gp2','io1','io2','st1','sc1','standard'].map(v=>`<option value="${v}" ${b.volumeType===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row-3" style="margin-top:8px;">
+        <div>
+          <label style="margin:0 0 4px;">volumeSize</label>
+          <input value="${esc(b.volumeSize)}" placeholder="100Gi" oninput="updateBDM(${i},'volumeSize',this.value)">
+        </div>
+        <div>
+          <label style="margin:0 0 4px;">iops (optional)</label>
+          <input value="${esc(b.iops)}" placeholder="3000" oninput="updateBDM(${i},'iops',this.value)">
+        </div>
+        <div>
+          <label style="margin:0 0 4px;">throughput (gp3 only)</label>
+          <input value="${esc(b.throughput)}" placeholder="125" oninput="updateBDM(${i},'throughput',this.value)">
+        </div>
+      </div>
+      <div class="row-2" style="margin-top:8px;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">
+          <input type="checkbox" ${b.encrypted?'checked':''} onchange="updateBDM(${i},'encrypted',this.checked)" style="margin:0;">encrypted
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:600;">
+          <input type="checkbox" ${b.deleteOnTermination?'checked':''} onchange="updateBDM(${i},'deleteOnTermination',this.checked)" style="margin:0;">deleteOnTermination
+        </label>
+      </div>
+      <label style="margin-top:8px;">kmsKeyID (optional)</label>
+      <input value="${esc(b.kmsKeyID)}" placeholder="arn:aws:kms:..." oninput="updateBDM(${i},'kmsKeyID',this.value)">
+    </div>`;
+}
+function updateBDM(i, field, val){ STATE.ec2nodeclass.blockDeviceMappings[i][field] = val; render(); }
+
+// ============================================================
+//  NODEOVERLAY FORM (karpenter.sh/v1alpha1)
+// ============================================================
+function renderNodeOverlay(){
+  const ov = STATE.nodeoverlay;
+
+  const metaBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span><b>NodeOverlay</b> is a v1alpha1 CRD that injects extra requirements / pricing / capacity overrides on top of NodePool scheduling decisions. Higher-weight overlays evaluate first.</span></div>
+    <label>NodeOverlay name <span class="req">*</span></label>
+    <input value="${esc(ov.name)}" oninput="setNested('nodeoverlay.name', this.value)" placeholder="overlay-default">
+
+    <label style="margin-top:12px;">Weight (evaluation priority, higher = first)</label>
+    <input type="number" min="0" value="${esc(ov.weight)}" placeholder="10" oninput="setNested('nodeoverlay.weight', this.value)">
+    <div class="hint">${ICONS.info}<span>When multiple overlays match the same node, the highest weight wins.</span></div>
+  `;
+
+  const reqBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Filter which nodes/instances this overlay applies to. Common keys: <code>karpenter.sh/nodepool</code>, <code>karpenter.sh/capacity-type</code>, <code>topology.kubernetes.io/zone</code>, <code>karpenter.k8s.aws/instance-generation</code>.</span></div>
+    <div class="repeater">
+      ${(ov.requirements||[]).map((r,i)=>{
+        const isFamily = r.key === 'karpenter.k8s.aws/instance-family';
+        const isExistsLike = r.op==='Exists' || r.op==='DoesNotExist';
+        return `
+        <div class="rep-item">
+          <div class="row" style="align-items:flex-start;">
+            <div style="flex:2;">
+              <div class="rep-item-hd"><span class="label">key</span></div>
+              ${renderKeyCombo(i, r.key, 'nodeoverlay.requirements')}
+            </div>
+            <div style="flex:1;max-width:140px;">
+              <div class="rep-item-hd"><span class="label">operator</span></div>
+              <select onchange="updateOvReq(${i},'op',this.value)">
+                ${['In','NotIn','Exists','DoesNotExist','Gt','Lt'].map(o=>`<option value="${o}" ${r.op===o?'selected':''}>${o}</option>`).join('')}
+              </select>
+            </div>
+            <div style="flex:0 0 auto;align-self:flex-end;padding-bottom:1px;">
+              <button class="btn-remove" onclick="removeItem('nodeoverlay.requirements',${i})">${ICONS.trash}</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="rep-item-hd"><span class="label">values${isFamily?' (instance families)':' (comma-separated)'}</span></div>
+            ${isFamily
+              ? renderFamilyGridOv(i, r.values||[])
+              : `<input value="${esc((r.values||[]).join(', '))}" placeholder="default, team-alpha" oninput="updateOvReqVals(${i}, this.value)" ${isExistsLike?'disabled style="opacity:.5;"':''}>`
+            }
+          </div>
+        </div>
+      `;}).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodeoverlay.requirements',{key:'',op:'In',values:[]})">${ICONS.plus} Add requirement</button>
+  `;
+
+  const pricingBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Choose ONE: relative <b>priceAdjustment</b> (e.g. <code>+45%</code> to penalize a generation) OR absolute <b>price</b> (e.g. <code>0.85</code> per hour).</span></div>
+    <div class="seg" style="margin-bottom:8px;">
+      <button class="${ov.pricingMode==='none'?'active':''}" onclick="setNested('nodeoverlay.pricingMode','none')">none</button>
+      <button class="${ov.pricingMode==='priceAdjustment'?'active':''}" onclick="setNested('nodeoverlay.pricingMode','priceAdjustment')">priceAdjustment</button>
+      <button class="${ov.pricingMode==='price'?'active':''}" onclick="setNested('nodeoverlay.pricingMode','price')">price</button>
+    </div>
+    ${ov.pricingMode === 'priceAdjustment' ? `
+      <label>priceAdjustment</label>
+      <input value="${esc(ov.priceAdjustment)}" placeholder="+45% or -10% or +0.05" oninput="setNested('nodeoverlay.priceAdjustment', this.value)">
+      <div class="hint">${ICONS.info}<span>Examples: <code>+45%</code> (penalize 45%), <code>-10%</code> (favor 10%), <code>+0.05</code> (add $0.05/hr flat).</span></div>
+    ` : ''}
+    ${ov.pricingMode === 'price' ? `
+      <label>price (absolute hourly cost)</label>
+      <input value="${esc(ov.price)}" placeholder="0.85" oninput="setNested('nodeoverlay.price', this.value)">
+      <div class="hint">${ICONS.info}<span>Override the price Karpenter sees for matching instances. Useful when the public price ranking is wrong for your account (RIs/SPs/EDP discounts).</span></div>
+    ` : ''}
+  `;
+
+  const capacityBody = `
+    <div class="hint" style="margin-bottom:10px;">${ICONS.info}<span>Override the resources advertised by matching nodes. Use this to expose extra capacity (time-sliced GPUs, custom devices) that Karpenter would not detect natively.</span></div>
+    <div class="repeater">
+      ${(ov.capacity||[]).map((it,i)=>kvRow(it,i,'nodeoverlay.capacity','nvidia.com/gpu','4')).join('')}
+    </div>
+    <button class="btn-add" style="margin-top:6px;" onclick="addToList('nodeoverlay.capacity',{k:'',v:''})">${ICONS.plus} Add capacity override</button>
+  `;
+
+  return [
+    section({id:'ov-meta', title:'Metadata &amp; Weight', icon:ICONS.tag, body:metaBody}),
+    section({id:'ov-req',  title:'Requirements (filter scope)', icon:ICONS.cpu, body:reqBody}),
+    section({id:'ov-price',title:'Pricing override', icon:ICONS.zap, body:pricingBody}),
+    section({id:'ov-cap',  title:'Capacity overrides', icon:ICONS.layers, body:capacityBody, collapsed:true})
+  ].join('');
+}
+function updateOvReq(idx, field, val){
+  STATE.nodeoverlay.requirements[idx][field] = val;
+  if(field==='key' && val==='karpenter.k8s.aws/instance-family'){
+    STATE.nodeoverlay.requirements[idx].op = 'In';
+  }
+  render();
+}
+function updateOvReqVals(idx, val){
+  STATE.nodeoverlay.requirements[idx].values = val.split(',').map(s=>s.trim()).filter(Boolean);
+  render();
+}
+function renderFamilyGridOv(idx, selected){
+  const sel = new Set(selected);
+  const sections = Object.entries(INSTANCE_FAMILIES).map(([cat, fams])=>`
+    <div class="fam-cat">
+      <div class="fam-cat-ttl">${cat} <span style="color:var(--muted);font-weight:600;font-family:Menlo,monospace;">(${fams.filter(f=>sel.has(f)).length}/${fams.length})</span></div>
+      <div class="fam-pills">
+        ${fams.map(f=>`<span class="fam-pill ${sel.has(f)?'on':''}" onclick="toggleFamilyOv(${idx},'${f}')">${f}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  return `
+    <div class="fam-grid">
+      <div class="fam-actions">
+        <span class="lbl">${selected.length} families selected</span>
+        <button class="btn btn-sm btn-normal" onclick="selectAllFamiliesOv(${idx})">Select All</button>
+        <button class="btn btn-sm btn-normal" onclick="clearAllFamiliesOv(${idx})">Clear All</button>
+      </div>
+      ${sections}
+    </div>`;
+}
+function toggleFamilyOv(idx, fam){
+  const r = STATE.nodeoverlay.requirements[idx];
+  r.values = r.values || [];
+  const i = r.values.indexOf(fam);
+  if(i>=0) r.values.splice(i,1); else r.values.push(fam);
+  render();
+}
+function selectAllFamiliesOv(idx){
+  const all = Object.values(INSTANCE_FAMILIES).flat();
+  STATE.nodeoverlay.requirements[idx].values = [...all];
+  render();
+}
+function clearAllFamiliesOv(idx){
+  STATE.nodeoverlay.requirements[idx].values = [];
+  render();
+}
+
+function buildNodeOverlayYAML(){
+  const ov = STATE.nodeoverlay;
+  const lines = [];
+  lines.push('apiVersion: karpenter.sh/v1alpha1');
+  lines.push('kind: NodeOverlay');
+  lines.push('metadata:');
+  lines.push(`  name: ${yamlStr(ov.name||'overlay-default')}`);
+  lines.push('spec:');
+  if(ov.weight !== '' && ov.weight != null) lines.push(`  weight: ${parseInt(ov.weight)||0}`);
+
+  const validReqs = (ov.requirements||[]).filter(r=>r.key);
+  if(validReqs.length){
+    lines.push('  requirements:');
+    validReqs.forEach(r=>{
+      lines.push(`    - key: ${yamlStr(r.key)}`);
+      lines.push(`      operator: ${r.op}`);
+      if(r.op !== 'Exists' && r.op !== 'DoesNotExist' && r.values && r.values.length){
+        lines.push(`      values:`);
+        r.values.forEach(v=>lines.push(`        - ${yamlStr(v)}`));
+      }
+    });
+  }
+
+  if(ov.pricingMode === 'priceAdjustment' && ov.priceAdjustment){
+    lines.push(`  priceAdjustment: ${yamlStr(ov.priceAdjustment)}`);
+  } else if(ov.pricingMode === 'price' && ov.price){
+    lines.push(`  price: ${yamlStr(ov.price)}`);
+  }
+
+  const validCap = (ov.capacity||[]).filter(c=>c.k);
+  if(validCap.length){
+    lines.push('  capacity:');
+    validCap.forEach(c=>lines.push(`    ${c.k}: ${yamlStr(c.v)}`));
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+
+// ============================================================
+//  YAML BUILDER
+// ============================================================
+function indent(n){ return '  '.repeat(n); }
+
+// Quote string only when needed (cron exprs, durations with leading zero, special chars, reserved words)
+function yamlStr(v){
+  if(v === null || v === undefined || v === '') return '""';
+  const s = String(v);
+  // numeric-looking, bool-looking, or contains specials -> quote
+  if(/^(true|false|null|yes|no|on|off|~)$/i.test(s)) return `"${s}"`;
+  if(/^[-+]?\d+(\.\d+)?$/.test(s)) return `"${s}"`;
+  if(/[:#&*!|>'"%@`,\[\]\{\}]/.test(s)) return `"${s.replace(/"/g,'\\"')}"`;
+  if(/^\s|\s$/.test(s)) return `"${s}"`;
+  return s;
+}
+
+function yamlList(arr, depth){
+  if(!arr || arr.length === 0) return ' []';
+  return '\n' + arr.map(v => `${indent(depth)}- ${yamlStr(v)}`).join('\n');
+}
+
+function buildNodePoolYAML(){
+  const np = STATE.nodepool;
+  const lines = [];
+  lines.push('apiVersion: karpenter.sh/v1');
+  lines.push('kind: NodePool');
+  lines.push('metadata:');
+  lines.push(`  name: ${yamlStr(np.name||'default')}`);
+  if(np.labels.filter(l=>l.k).length){
+    lines.push('  labels:');
+    np.labels.filter(l=>l.k).forEach(l=>lines.push(`    ${l.k}: ${yamlStr(l.v)}`));
+  }
+  if(np.annotations.filter(l=>l.k).length){
+    lines.push('  annotations:');
+    np.annotations.filter(l=>l.k).forEach(l=>lines.push(`    ${l.k}: ${yamlStr(l.v)}`));
+  }
+  lines.push('spec:');
+  lines.push('  template:');
+
+  // template metadata
+  const tplMeta = (np.tplLabels.filter(l=>l.k).length || np.tplAnnotations.filter(l=>l.k).length);
+  if(tplMeta){
+    lines.push('    metadata:');
+    if(np.tplLabels.filter(l=>l.k).length){
+      lines.push('      labels:');
+      np.tplLabels.filter(l=>l.k).forEach(l=>lines.push(`        ${l.k}: ${yamlStr(l.v)}`));
+    }
+    if(np.tplAnnotations.filter(l=>l.k).length){
+      lines.push('      annotations:');
+      np.tplAnnotations.filter(l=>l.k).forEach(l=>lines.push(`        ${l.k}: ${yamlStr(l.v)}`));
+    }
+  }
+
+  lines.push('    spec:');
+  lines.push('      nodeClassRef:');
+  lines.push('        group: karpenter.k8s.aws');
+  lines.push('        kind: EC2NodeClass');
+  lines.push(`        name: ${yamlStr(np.nodeClassRefName||'default')}`);
+
+  // Requirements
+  const validReqs = np.requirements.filter(r=>r.key);
+  if(validReqs.length){
+    lines.push('      requirements:');
+    validReqs.forEach(r=>{
+      lines.push(`        - key: ${yamlStr(r.key)}`);
+      lines.push(`          operator: ${r.op}`);
+      if(r.op !== 'Exists' && r.op !== 'DoesNotExist' && r.values && r.values.length){
+        lines.push(`          values:`);
+        r.values.forEach(v=>lines.push(`            - ${yamlStr(v)}`));
+      }
+    });
+  }
+
+  // Taints
+  const validTaints = np.taints.filter(t=>t.key);
+  if(validTaints.length){
+    lines.push('      taints:');
+    validTaints.forEach(t=>{
+      lines.push(`        - key: ${yamlStr(t.key)}`);
+      if(t.value) lines.push(`          value: ${yamlStr(t.value)}`);
+      lines.push(`          effect: ${t.effect}`);
+    });
+  }
+
+  // Startup taints
+  const validStartupTaints = np.startupTaints.filter(t=>t.key);
+  if(validStartupTaints.length){
+    lines.push('      startupTaints:');
+    validStartupTaints.forEach(t=>{
+      lines.push(`        - key: ${yamlStr(t.key)}`);
+      if(t.value) lines.push(`          value: ${yamlStr(t.value)}`);
+      lines.push(`          effect: ${t.effect}`);
+    });
+  }
+
+  if(np.expireAfter) lines.push(`      expireAfter: ${yamlStr(np.expireAfter)}`);
+  if(np.terminationGracePeriod) lines.push(`      terminationGracePeriod: ${yamlStr(np.terminationGracePeriod)}`);
+
+  // Disruption
+  lines.push('  disruption:');
+  lines.push(`    consolidationPolicy: ${np.disruption.consolidationPolicy}`);
+  if(np.disruption.consolidateAfter) lines.push(`    consolidateAfter: ${yamlStr(np.disruption.consolidateAfter)}`);
+
+  const validBudgets = np.disruption.budgets.filter(b=>b.nodes);
+  if(validBudgets.length){
+    lines.push('    budgets:');
+    validBudgets.forEach(b=>{
+      lines.push(`      - nodes: ${yamlStr(b.nodes)}`);
+      if(b.reasons && b.reasons.length){
+        lines.push('        reasons:');
+        b.reasons.forEach(r=>lines.push(`          - ${r}`));
+      }
+      if(b.schedule){
+        lines.push(`        schedule: ${yamlStr(b.schedule)}`);
+        if(b.duration) lines.push(`        duration: ${yamlStr(b.duration)}`);
+      }
+    });
+  }
+
+  // Limits
+  const hasCustomLimits = (np.customLimits||[]).some(l=>l.k);
+  if(np.limits.cpu || np.limits.memory || np.limitsNodes!=='' || hasCustomLimits){
+    lines.push('  limits:');
+    if(np.limits.cpu) lines.push(`    cpu: ${yamlStr(np.limits.cpu)}`);
+    if(np.limits.memory) lines.push(`    memory: ${yamlStr(np.limits.memory)}`);
+    if(np.limitsNodes!=='' && np.limitsNodes!=null) lines.push(`    nodes: ${parseInt(np.limitsNodes)||0}`);
+    if(hasCustomLimits){
+      np.customLimits.filter(l=>l.k).forEach(l=>lines.push(`    ${l.k}: ${yamlStr(l.v)}`));
+    }
+  }
+
+  // Replicas (Static NodePool, v1.6+)
+  if(np.replicas !== '' && np.replicas != null){
+    lines.push(`  replicas: ${parseInt(np.replicas)||0}`);
+  }
+
+  // Weight
+  if(np.weight !== '' && np.weight !== null && np.weight !== undefined){
+    lines.push(`  weight: ${parseInt(np.weight)||0}`);
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+function buildEC2NodeClassYAML(){
+  const ec = STATE.ec2nodeclass;
+  const lines = [];
+  lines.push('apiVersion: karpenter.k8s.aws/v1');
+  lines.push('kind: EC2NodeClass');
+  lines.push('metadata:');
+  lines.push(`  name: ${yamlStr(ec.name||'default')}`);
+  lines.push('spec:');
+  lines.push(`  amiFamily: ${yamlStr(ec.amiFamily)}`);
+
+  // AMI selector terms
+  const amiTerms = ec.amiSelectorTerms.filter(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+  if(amiTerms.length){
+    lines.push('  amiSelectorTerms:');
+    amiTerms.forEach(t=>{
+      if(t.type==='tags'){
+        lines.push('    - tags:');
+        t.tags.filter(kv=>kv.k).forEach(kv=>lines.push(`        ${kv.k}: ${yamlStr(kv.v)}`));
+      } else {
+        lines.push(`    - ${t.type}: ${yamlStr(t.value)}`);
+      }
+    });
+  }
+
+  // Subnet selector terms
+  const subnetTerms = ec.subnetSelectorTerms.filter(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+  if(subnetTerms.length){
+    lines.push('  subnetSelectorTerms:');
+    subnetTerms.forEach(t=>{
+      if(t.type==='tags'){
+        lines.push('    - tags:');
+        t.tags.filter(kv=>kv.k).forEach(kv=>lines.push(`        ${kv.k}: ${yamlStr(kv.v)}`));
+      } else {
+        lines.push(`    - ${t.type}: ${yamlStr(t.value)}`);
+      }
+    });
+  }
+
+  // Security group selector terms
+  const sgTerms = ec.securityGroupSelectorTerms.filter(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+  if(sgTerms.length){
+    lines.push('  securityGroupSelectorTerms:');
+    sgTerms.forEach(t=>{
+      if(t.type==='tags'){
+        lines.push('    - tags:');
+        t.tags.filter(kv=>kv.k).forEach(kv=>lines.push(`        ${kv.k}: ${yamlStr(kv.v)}`));
+      } else {
+        lines.push(`    - ${t.type}: ${yamlStr(t.value)}`);
+      }
+    });
+  }
+
+  // Capacity reservation selector terms
+  const crTerms = (ec.capacityReservationSelectorTerms||[]).filter(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+  if(crTerms.length){
+    lines.push('  capacityReservationSelectorTerms:');
+    crTerms.forEach(t=>{
+      if(t.type==='tags'){
+        lines.push('    - tags:');
+        t.tags.filter(kv=>kv.k).forEach(kv=>lines.push(`        ${kv.k}: ${yamlStr(kv.v)}`));
+      } else {
+        lines.push(`    - ${t.type}: ${yamlStr(t.value)}`);
+      }
+    });
+  }
+
+  if(ec.role) lines.push(`  role: ${yamlStr(ec.role)}`);
+
+  // instanceStorePolicy
+  if(ec.instanceStorePolicy) lines.push(`  instanceStorePolicy: ${yamlStr(ec.instanceStorePolicy)}`);
+
+  // detailedMonitoring
+  if(ec.detailedMonitoring) lines.push(`  detailedMonitoring: true`);
+
+  // Block device mappings
+  const validBDM = ec.blockDeviceMappings.filter(b=>b.deviceName);
+  if(validBDM.length){
+    lines.push('  blockDeviceMappings:');
+    validBDM.forEach(b=>{
+      lines.push(`    - deviceName: ${yamlStr(b.deviceName)}`);
+      lines.push('      ebs:');
+      if(b.volumeSize) lines.push(`        volumeSize: ${yamlStr(b.volumeSize)}`);
+      if(b.volumeType) lines.push(`        volumeType: ${yamlStr(b.volumeType)}`);
+      if(b.iops) lines.push(`        iops: ${parseInt(b.iops)||0}`);
+      if(b.throughput) lines.push(`        throughput: ${parseInt(b.throughput)||0}`);
+      if(typeof b.encrypted === 'boolean') lines.push(`        encrypted: ${b.encrypted}`);
+      if(typeof b.deleteOnTermination === 'boolean') lines.push(`        deleteOnTermination: ${b.deleteOnTermination}`);
+      if(b.kmsKeyID) lines.push(`        kmsKeyID: ${yamlStr(b.kmsKeyID)}`);
+    });
+  }
+
+  // Metadata options
+  const mo = ec.metadataOptions;
+  lines.push('  metadataOptions:');
+  lines.push(`    httpEndpoint: ${yamlStr(mo.httpEndpoint)}`);
+  lines.push(`    httpProtocolIPv6: ${yamlStr(mo.httpProtocolIPv6)}`);
+  lines.push(`    httpPutResponseHopLimit: ${parseInt(mo.httpPutResponseHopLimit)||1}`);
+  lines.push(`    httpTokens: ${yamlStr(mo.httpTokens)}`);
+
+  // Tags
+  const validTags = ec.tags.filter(t=>t.k);
+  if(validTags.length){
+    lines.push('  tags:');
+    validTags.forEach(t=>lines.push(`    ${t.k}: ${yamlStr(t.v)}`));
+  }
+
+  // UserData
+  if(ec.userData){
+    lines.push('  userData: |');
+    ec.userData.split('\n').forEach(ln=>lines.push(`    ${ln}`));
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+// ============================================================
+//  YAML SYNTAX HIGHLIGHT
+// ============================================================
+function highlightYAML(yaml){
+  // Escape first
+  let s = esc(yaml);
+  // Comments
+  s = s.replace(/(#.*?)$/gm, '<span class="k-cmt">$1</span>');
+  // List dashes at line start
+  s = s.replace(/^(\s*)(-)(\s)/gm, '$1<span class="k-dash">$2</span>$3');
+  // Keys (word: ) - color the key + colon
+  s = s.replace(/^(\s*-?\s*)([\w][\w.\-/]*)(:)/gm, '$1<span class="k-key">$2</span><span class="k-dash">$3</span>');
+  // Quoted strings
+  s = s.replace(/(&quot;[^&]*?&quot;)/g, '<span class="k-str">$1</span>');
+  // Booleans
+  s = s.replace(/(:\s)(true|false|null)\b/g, '$1<span class="k-bool">$2</span>');
+  // Numbers
+  s = s.replace(/(:\s)(\d+(?:\.\d+)?)(?=\s*$|\s)/gm, '$1<span class="k-num">$2</span>');
+  // apiVersion/kind doc anchors (visual)
+  s = s.replace(/^(apiVersion|kind)/gm, '<span class="k-doc">$1</span>');
+  return s;
+}
+
+// ============================================================
+//  YAML VALIDATOR (lint-style checks)
+// ============================================================
+const DNS1123 = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+const DURATION = /^(Never|(\d+(s|m|h|d|w))+)$/i;
+// Karpenter cron: 5 fields. Allow common shortcuts: @yearly @monthly @weekly @daily @hourly
+const CRON_SHORTCUTS = ['@yearly','@annually','@monthly','@weekly','@daily','@midnight','@hourly'];
+// K8s resource quantity: 100, 1k, 100Gi, 500Mi, 1.5, 1000m
+const K8S_QUANTITY = /^[\d.]+(k|m|M|G|T|P|E|Ki|Mi|Gi|Ti|Pi|Ei)?$/;
+
+function validate(){
+  const errs = [];
+  const warns = [];
+  const ok = [];
+
+  if(STATE.view === 'nodepool'){
+    const np = STATE.nodepool;
+    // Required fields
+    if(!np.name) errs.push('NodePool name is required.');
+    else if(!DNS1123.test(np.name) || np.name.length>63) errs.push(`NodePool name "${np.name}" is not a valid DNS-1123 label (lowercase, alphanumeric, hyphens, max 63).`);
+
+    if(!np.nodeClassRefName) errs.push('nodeClassRef.name is required (must reference an EC2NodeClass).');
+    else if(!DNS1123.test(np.nodeClassRefName)) errs.push(`nodeClassRef.name "${np.nodeClassRefName}" is not a valid DNS-1123 label.`);
+
+    // Cross-check NodeClassRef matches EC2NodeClass name (best-effort, only if user touched the EC2NodeClass tab)
+    if(np.nodeClassRefName && STATE.ec2nodeclass.name && np.nodeClassRefName !== STATE.ec2nodeclass.name){
+      warns.push(`nodeClassRef.name (<code>${esc(np.nodeClassRefName)}</code>) does not match the EC2NodeClass name (<code>${esc(STATE.ec2nodeclass.name)}</code>) currently configured in this UI.`);
+    }
+
+    // Requirements validation
+    if(!np.requirements.length) warns.push('No requirements defined - Karpenter will consider all instance types, which is rarely intended.');
+
+    np.requirements.forEach((r, i)=>{
+      const tag = `requirements[${i}]`;
+      if(!r.key) errs.push(`${tag}: key is empty.`);
+      if(['In','NotIn','Gt','Lt'].includes(r.op) && (!r.values || !r.values.length)){
+        errs.push(`${tag} (${r.key||'?'}, ${r.op}): values cannot be empty.`);
+      }
+      if(['Gt','Lt'].includes(r.op) && r.values && r.values.length>1){
+        errs.push(`${tag} (${r.key||'?'}, ${r.op}): only one value is allowed for Gt/Lt.`);
+      }
+      if(['Gt','Lt'].includes(r.op) && r.values && r.values[0] && !/^\d+(\.\d+)?$/.test(r.values[0])){
+        errs.push(`${tag} (${r.key||'?'}, ${r.op}): value must be a number.`);
+      }
+    });
+
+    // Required arch + os keys are recommended
+    const hasArch = np.requirements.some(r => r.key==='kubernetes.io/arch' && (r.values||[]).length);
+    const hasOs   = np.requirements.some(r => r.key==='kubernetes.io/os'   && (r.values||[]).length);
+    if(!hasArch) warns.push('No <code>kubernetes.io/arch</code> requirement - mixing amd64/arm64 nodes can break workloads without nodeSelectors.');
+    if(!hasOs)   warns.push('No <code>kubernetes.io/os</code> requirement - non-linux nodes may sneak in.');
+
+    // Capacity-type sanity
+    const capReq = np.requirements.find(r => r.key==='karpenter.sh/capacity-type');
+    if(capReq && capReq.values){
+      const invalid = capReq.values.filter(v => !['spot','on-demand','reserved'].includes(v));
+      if(invalid.length) errs.push(`capacity-type values must be in [spot, on-demand, reserved]. Invalid: ${invalid.join(', ')}.`);
+    }
+
+    // expireAfter / consolidateAfter format
+    if(np.expireAfter && !DURATION.test(np.expireAfter)) errs.push(`expireAfter "${np.expireAfter}" is not a valid duration (e.g. 30m, 24h, 7d, Never).`);
+    if(np.terminationGracePeriod && !DURATION.test(np.terminationGracePeriod)) errs.push(`terminationGracePeriod "${np.terminationGracePeriod}" is not a valid duration.`);
+    if(np.disruption.consolidateAfter && !DURATION.test(np.disruption.consolidateAfter)) errs.push(`consolidateAfter "${np.disruption.consolidateAfter}" is not a valid duration.`);
+
+    // Disruption policy coherence
+    if(np.disruption.consolidationPolicy === 'WhenEmptyOrUnderutilized' && np.disruption.consolidateAfter && /^Never$/i.test(np.disruption.consolidateAfter)){
+      errs.push('consolidateAfter cannot be "Never" when consolidationPolicy is WhenEmptyOrUnderutilized.');
+    }
+
+    // Budgets
+    np.disruption.budgets.forEach((b, i)=>{
+      const tag = `disruption.budgets[${i}]`;
+      if(b.nodes && !/^(\d+|\d+%)$/.test(b.nodes)) errs.push(`${tag}: nodes must be an integer or a percent (e.g. 5 or 10%).`);
+      if(b.schedule){
+        const parts = b.schedule.trim().split(/\s+/);
+        if(!CRON_SHORTCUTS.includes(b.schedule) && parts.length !== 5){
+          errs.push(`${tag}: schedule must be a 5-field cron expression or @shortcut (got "${b.schedule}").`);
+        }
+        if(!b.duration) errs.push(`${tag}: duration is required when schedule is set.`);
+        else if(!DURATION.test(b.duration)) errs.push(`${tag}: duration "${b.duration}" is not a valid duration.`);
+      }
+      const validReasons = ['Underutilized','Empty','Drifted'];
+      (b.reasons||[]).forEach(r=>{
+        if(!validReasons.includes(r)) errs.push(`${tag}: invalid reason "${r}". Allowed: ${validReasons.join(', ')}.`);
+      });
+    });
+
+    // Taints validation
+    [...np.taints, ...np.startupTaints].forEach((t, i)=>{
+      if(t.key && !['NoSchedule','PreferNoSchedule','NoExecute'].includes(t.effect)){
+        errs.push(`taint key=${t.key}: invalid effect "${t.effect}".`);
+      }
+    });
+
+    // Weight
+    if(np.weight !== '' && (isNaN(np.weight) || np.weight<0 || np.weight>100)){
+      errs.push(`weight must be between 0 and 100 (got "${np.weight}").`);
+    }
+
+    // Limits format (CPU + memory accept K8s resource quantity)
+    if(np.limits.cpu && !K8S_QUANTITY.test(np.limits.cpu)) warns.push(`limits.cpu "${np.limits.cpu}" is not a valid K8s resource quantity (e.g. 1000, 1k, 100m).`);
+    if(np.limits.memory && !K8S_QUANTITY.test(np.limits.memory)) warns.push(`limits.memory "${np.limits.memory}" is not a valid K8s resource quantity (e.g. 1000Gi, 500Mi).`);
+    // Custom limits
+    (np.customLimits||[]).forEach((l,i)=>{
+      if(l.k && !K8S_QUANTITY.test(l.v)) warns.push(`limits.${l.k} "${l.v}" is not a valid K8s resource quantity.`);
+    });
+    // Static NodePool: replicas requires limits.nodes
+    if(np.replicas !== '' && np.replicas != null && (np.limitsNodes==='' || np.limitsNodes==null)){
+      warns.push('Static NodePool: <code>spec.replicas</code> usually pairs with <code>spec.limits.nodes</code> to cap node count.');
+    }
+
+  } else if(STATE.view === 'ec2nodeclass'){
+    const ec = STATE.ec2nodeclass;
+
+    if(!ec.name) errs.push('EC2NodeClass name is required.');
+    else if(!DNS1123.test(ec.name) || ec.name.length>63) errs.push(`EC2NodeClass name "${ec.name}" is not a valid DNS-1123 label.`);
+
+    if(!ec.role) errs.push('IAM role is required.');
+    if(ec.role && /CLUSTER_NAME/.test(ec.role)) warns.push('IAM role still contains placeholder <code>CLUSTER_NAME</code>. Replace with your real cluster name.');
+
+    // Selectors
+    const amiValid = ec.amiSelectorTerms.some(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+    if(!amiValid && ec.amiFamily!=='Custom') warns.push('No AMI selector terms - Karpenter will use the default AMI for the family.');
+    if(!amiValid && ec.amiFamily==='Custom') errs.push('amiFamily=Custom requires at least one amiSelectorTerm.');
+
+    const subnetValid = ec.subnetSelectorTerms.some(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+    if(!subnetValid) errs.push('At least one subnetSelectorTerm is required.');
+
+    const sgValid = ec.securityGroupSelectorTerms.some(t => (t.type==='tags' ? (t.tags||[]).some(kv=>kv.k) : t.value));
+    if(!sgValid) errs.push('At least one securityGroupSelectorTerm is required.');
+
+    // Tag placeholders
+    const placeholders = [];
+    ec.subnetSelectorTerms.concat(ec.securityGroupSelectorTerms).forEach(t=>{
+      if(t.type==='tags') (t.tags||[]).forEach(kv=>{
+        if(kv.v === 'CLUSTER_NAME') placeholders.push(`${kv.k}: CLUSTER_NAME`);
+      });
+    });
+    if(placeholders.length) warns.push(`Selector tag still contains placeholder <code>CLUSTER_NAME</code>. Replace with your real cluster name.`);
+
+    // Block device mappings
+    ec.blockDeviceMappings.forEach((b, i)=>{
+      const tag = `blockDeviceMappings[${i}]`;
+      if(!b.deviceName) errs.push(`${tag}: deviceName is required.`);
+      if(b.volumeSize && !/^\d+(\.\d+)?(Mi|Gi|Ti)?$/.test(b.volumeSize)) errs.push(`${tag}: volumeSize "${b.volumeSize}" is invalid (use 100Gi, 500Gi, etc).`);
+      if(b.throughput && b.volumeType !== 'gp3') warns.push(`${tag}: throughput is only valid for gp3 volumes (current: ${b.volumeType}).`);
+      if(b.iops && !['gp3','io1','io2'].includes(b.volumeType)) warns.push(`${tag}: iops is only valid for gp3/io1/io2 (current: ${b.volumeType}).`);
+    });
+
+    // IMDS hop limit
+    if(ec.metadataOptions.httpTokens === 'optional') warns.push('httpTokens=optional allows IMDSv1. Prefer "required" (IMDSv2) for security.');
+    if(ec.metadataOptions.httpPutResponseHopLimit > 2) warns.push(`httpPutResponseHopLimit=${ec.metadataOptions.httpPutResponseHopLimit} allows pods to reach IMDS through host networking. Use 1 unless you have a specific need.`);
+  } else if(STATE.view === 'nodeoverlay'){
+    const ov = STATE.nodeoverlay;
+    if(!ov.name) errs.push('NodeOverlay name is required.');
+    else if(!DNS1123.test(ov.name) || ov.name.length>63) errs.push(`NodeOverlay name "${ov.name}" is not a valid DNS-1123 label.`);
+
+    if(ov.weight !== '' && ov.weight != null && (isNaN(ov.weight) || ov.weight<0)){
+      errs.push(`weight must be a non-negative integer (got "${ov.weight}").`);
+    }
+
+    if(!ov.requirements || !ov.requirements.length){
+      warns.push('No requirements - this overlay applies to ALL nodes scheduled by Karpenter, which is probably not what you want.');
+    }
+    (ov.requirements||[]).forEach((r, i)=>{
+      const tag = `requirements[${i}]`;
+      if(!r.key) errs.push(`${tag}: key is empty.`);
+      if(['In','NotIn','Gt','Lt'].includes(r.op) && (!r.values || !r.values.length)){
+        errs.push(`${tag} (${r.key||'?'}, ${r.op}): values cannot be empty.`);
+      }
+    });
+
+    if(ov.pricingMode === 'priceAdjustment'){
+      if(!ov.priceAdjustment) warns.push('priceAdjustment is empty - no pricing override applied.');
+      else if(!/^[+-]?(\d+(\.\d+)?%?|\.\d+%?)$/.test(ov.priceAdjustment)){
+        errs.push(`priceAdjustment "${ov.priceAdjustment}" is invalid. Use formats like <code>+45%</code>, <code>-10%</code>, <code>+0.05</code>.`);
+      }
+    } else if(ov.pricingMode === 'price'){
+      if(!ov.price) warns.push('price is empty - no absolute price override applied.');
+      else if(!/^\d+(\.\d+)?$/.test(ov.price)){
+        errs.push(`price "${ov.price}" must be a positive decimal (hourly cost).`);
+      }
+    }
+
+    // Capacity values must be valid k8s quantities
+    (ov.capacity||[]).forEach(c=>{
+      if(c.k && c.v && !K8S_QUANTITY.test(c.v)) warns.push(`capacity.${c.k} "${c.v}" is not a valid K8s resource quantity.`);
+    });
+  }
+
+  if(!errs.length && !warns.length) ok.push('Manifest is well-formed and ready to apply.');
+  return { errs, warns, ok };
+}
+
+function renderValidator(){
+  const { errs, warns, ok } = validate();
+  let cls, header, items = [];
+
+  if(errs.length){
+    cls = 'errors';
+    header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>YAML Lint</span>
+                <span class="v-count">${errs.length} error${errs.length>1?'s':''}${warns.length?` &middot; ${warns.length} warning${warns.length>1?'s':''}`:''}</span>`;
+    items = errs.map(e=>`<li><span class="v-bullet v-err">&#10005;</span><span class="v-err">${e}</span></li>`)
+                .concat(warns.map(w=>`<li><span class="v-bullet v-warn">!</span><span class="v-warn">${w}</span></li>`));
+  } else if(warns.length){
+    cls = 'warns';
+    header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>YAML Lint</span>
+                <span class="v-count">${warns.length} warning${warns.length>1?'s':''}</span>`;
+    items = warns.map(w=>`<li><span class="v-bullet v-warn">!</span><span class="v-warn">${w}</span></li>`);
+  } else {
+    cls = 'valid';
+    header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span>YAML Lint</span>
+                <span class="v-count">valid</span>`;
+    items = ok.map(o=>`<li><span class="v-bullet v-ok">&check;</span><span class="v-ok">${o}</span></li>`);
+  }
+
+  return `
+    <div class="validator ${cls} ${cls==='valid'?'collapsed':''}" id="validatorBox">
+      <div class="v-hd" onclick="document.getElementById('validatorBox').classList.toggle('collapsed')">
+        ${header}
+        <span style="margin-left:auto;font-size:10px;opacity:.7;">click to toggle</span>
+      </div>
+      <ul class="v-list">${items.join('')}</ul>
+    </div>`;
+}
+const PRESETS = {
+  'spot-mixed': {
+    nodepool: {
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ],
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'0s',
+        budgets:[{nodes:'10%',reasons:[],schedule:'',duration:''}] }
+    }
+  },
+  'ondemand': {
+    nodepool: {
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['on-demand'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ]
+    }
+  },
+  'spot': {
+    nodepool: {
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ],
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'0s',
+        budgets:[
+          {nodes:'20%',reasons:[],schedule:'',duration:''},
+          {nodes:'0',reasons:['Drifted','Underutilized'],schedule:'0 9 * * mon-fri',duration:'9h'}
+        ]}
+    }
+  },
+  'gpu': {
+    nodepool: {
+      name:'gpu',
+      tplLabels:[{k:'workload',v:'gpu'}],
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['on-demand'] },
+        { key:'karpenter.k8s.aws/instance-family', op:'In', values:['g5','g6','p4d','p5'] }
+      ],
+      taints:[{key:'nvidia.com/gpu',value:'true',effect:'NoSchedule'}],
+      nodeClassRefName:'gpu',
+      disruption:{ consolidationPolicy:'WhenEmpty', consolidateAfter:'30s',
+        budgets:[{nodes:'1',reasons:[],schedule:'',duration:''}] },
+      limits:{cpu:'200',memory:'2000Gi'}
+    },
+    ec2nodeclass: {
+      name:'gpu',
+      amiFamily:'AL2023',
+      amiSelectorTerms:[{type:'alias',value:'al2023@latest'}],
+      blockDeviceMappings:[{deviceName:'/dev/xvda',volumeSize:'200Gi',volumeType:'gp3',iops:'',throughput:'',encrypted:true,deleteOnTermination:true,kmsKeyID:''}]
+    }
+  },
+  'bottlerocket': {
+    nodepool: {
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ]
+    },
+    ec2nodeclass: {
+      amiFamily:'Bottlerocket',
+      amiSelectorTerms:[{type:'alias',value:'bottlerocket@latest'}]
+    }
+  },
+  'graviton': {
+    nodepool: {
+      name:'graviton',
+      tplLabels:[{k:'arch',v:'arm64'}],
+      requirements: [
+        { key:'kubernetes.io/arch', op:'In', values:['arm64'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['3'] }
+      ],
+      nodeClassRefName:'graviton'
+    },
+    ec2nodeclass: {
+      name:'graviton',
+      amiFamily:'AL2023',
+      amiSelectorTerms:[{type:'alias',value:'al2023@latest'}]
+    }
+  },
+
+  // ============ BLUEPRINTS (aws-samples/karpenter-blueprints) ============
+  'bp-disruption-budget': {
+    nodepool: {
+      name:'disruption-budget',
+      tplLabels:[{k:'intent',v:'disruption-budget'}],
+      requirements:[
+        { key:'karpenter.sh/capacity-type', op:'In', values:['on-demand'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-size', op:'NotIn', values:['nano','micro','small','medium'] },
+        { key:'karpenter.k8s.aws/instance-hypervisor', op:'In', values:['nitro'] }
+      ],
+      nodeClassRefName:'disruption-budget',
+      expireAfter:'720h',
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'1m',
+        budgets:[{nodes:'0',reasons:[],schedule:'0 0 * * *',duration:'24h'}] },
+      limits:{cpu:'100',memory:'100Gi'}
+    },
+    ec2nodeclass:{
+      name:'disruption-budget',
+      amiFamily:'Bottlerocket',
+      amiSelectorTerms:[{type:'alias',value:'bottlerocket@latest'}]
+    }
+  },
+  'bp-multi-ebs': {
+    nodepool:{
+      name:'multi-ebs',
+      tplLabels:[{k:'intent',v:'multi-ebs'}],
+      requirements:[
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r','i','d'] },
+        { key:'karpenter.k8s.aws/instance-cpu', op:'In', values:['4','8','16','32','48','64'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] }
+      ],
+      nodeClassRefName:'multi-ebs',
+      expireAfter:'168h0m0s',
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'1m',
+        budgets:[{nodes:'10%',reasons:[],schedule:'',duration:''}] },
+      limits:{cpu:'1k',memory:'500Gi'}
+    },
+    ec2nodeclass:{
+      name:'multi-ebs',
+      amiFamily:'Bottlerocket',
+      amiSelectorTerms:[{type:'alias',value:'bottlerocket@latest'}],
+      blockDeviceMappings:[
+        {deviceName:'/dev/xvda',volumeSize:'20Gi',volumeType:'gp3',iops:'',throughput:'',encrypted:false,deleteOnTermination:true,kmsKeyID:''},
+        {deviceName:'/dev/xvdb',volumeSize:'100Gi',volumeType:'gp3',iops:'',throughput:'',encrypted:false,deleteOnTermination:true,kmsKeyID:''}
+      ]
+    }
+  },
+  'bp-od-spot-split': {
+    nodepool:{
+      name:'node-spot',
+      tplLabels:[{k:'intent',v:'apps'}],
+      requirements:[
+        { key:'capacity-spread', op:'In', values:['2','3','4','5'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ],
+      taints:[{key:'intent',value:'workload-split',effect:'NoSchedule'}],
+      expireAfter:'168h0m0s',
+      limits:{cpu:'1k',memory:'500Gi'}
+    }
+  },
+  'bp-odcr-reserved': {
+    nodepool:{
+      name:'odcr-priority',
+      tplLabels:[{k:'intent',v:'apps'},{k:'workload-type',v:'odcr'}],
+      requirements:[
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'node.kubernetes.io/instance-type', op:'In', values:['t3.small'] },
+        { key:'topology.kubernetes.io/zone', op:'In', values:['<<AZ>>'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['reserved','on-demand'] }
+      ],
+      nodeClassRefName:'odcr-nodeclass',
+      expireAfter:'168h0m0s'
+    },
+    ec2nodeclass:{
+      name:'odcr-nodeclass',
+      amiFamily:'AL2023',
+      amiSelectorTerms:[{type:'alias',value:'al2023@latest'}],
+      capacityReservationSelectorTerms:[{type:'tags',tags:[{k:'intent',v:'apps'},{k:'project',v:'CLUSTER_NAME'}]}]
+    }
+  },
+  'bp-reserved-instances': {
+    nodepool:{
+      name:'reserved-instances',
+      tplLabels:[{k:'intent',v:'reserved-apps'}],
+      requirements:[
+        { key:'node.kubernetes.io/instance-type', op:'In', values:['c5.xlarge','c5.2xlarge'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['on-demand'] }
+      ],
+      expireAfter:'168h0m0s',
+      limits:{cpu:'16',memory:''},
+      weight:'100'
+    }
+  },
+  'bp-soci-snapshotter': {
+    nodepool:{
+      name:'soci-snapshotter',
+      tplLabels:[{k:'intent',v:'soci-snapshotter'}],
+      requirements:[
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] }
+      ],
+      nodeClassRefName:'soci-snapshotter',
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'5m',
+        budgets:[{nodes:'10%',reasons:[],schedule:'',duration:''}] }
+    },
+    ec2nodeclass:{
+      name:'soci-snapshotter',
+      amiFamily:'AL2023',
+      amiSelectorTerms:[{type:'alias',value:'al2023@latest'}],
+      instanceStorePolicy:'RAID0',
+      blockDeviceMappings:[{deviceName:'/dev/xvda',volumeSize:'100Gi',volumeType:'gp3',iops:'16000',throughput:'1000',encrypted:false,deleteOnTermination:true,kmsKeyID:''}],
+      userData:'apiVersion: node.eks.aws/v1alpha1\nkind: NodeConfig\nspec:\n  featureGates:\n    FastImagePull: true\n'
+    }
+  },
+  'bp-static-pool': {
+    nodepool:{
+      name:'gpu-static',
+      tplLabels:[{k:'capacity-type',v:'gpu-static'},{k:'nvidia.com/gpu.present',v:'true'}],
+      requirements:[
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'node.kubernetes.io/instance-type', op:'In', values:['g6e.8xlarge'] }
+      ],
+      taints:[{key:'nvidia.com/gpu',value:'',effect:'NoSchedule'}],
+      nodeClassRefName:'gpu-static',
+      expireAfter:'Never',
+      replicas:'1',
+      limitsNodes:'2',
+      limits:{cpu:'',memory:''}
+    },
+    ec2nodeclass:{
+      name:'gpu-static',
+      amiFamily:'Bottlerocket',
+      amiSelectorTerms:[{type:'alias',value:'bottlerocket@latest'}],
+      instanceStorePolicy:'RAID0'
+    }
+  },
+  'bp-custom-ami': {
+    nodepool:{
+      name:'custom-ami',
+      tplLabels:[{k:'intent',v:'custom-ami'}],
+      requirements:[
+        { key:'karpenter.k8s.aws/instance-hypervisor', op:'NotIn', values:[''] },
+        { key:'karpenter.sh/capacity-type', op:'In', values:['spot','on-demand'] },
+        { key:'kubernetes.io/os', op:'In', values:['linux'] },
+        { key:'kubernetes.io/arch', op:'In', values:['amd64'] },
+        { key:'karpenter.k8s.aws/instance-category', op:'In', values:['c','m','r'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'Gt', values:['2'] }
+      ],
+      nodeClassRefName:'custom-ami-template',
+      disruption:{ consolidationPolicy:'WhenEmptyOrUnderutilized', consolidateAfter:'1m',
+        budgets:[{nodes:'10%',reasons:[],schedule:'',duration:''}] },
+      limits:{cpu:'1k',memory:'500Gi'}
+    },
+    ec2nodeclass:{
+      name:'custom-ami-template',
+      amiFamily:'AL2023',
+      amiSelectorTerms:[{type:'name',value:'*amazon-eks-node-al2023*'}]
+    }
+  },
+  'bp-overlay-prefer-newer': {
+    nodeoverlay:{
+      name:'team-alpha-prefer-latest-gen',
+      weight:'10',
+      requirements:[
+        { key:'karpenter.sh/nodepool', op:'In', values:['team-alpha'] },
+        { key:'karpenter.k8s.aws/instance-generation', op:'In', values:['5'] }
+      ],
+      pricingMode:'priceAdjustment',
+      priceAdjustment:'+45%',
+      price:'',
+      capacity:[]
+    }
+  },
+  'bp-overlay-gpu-slices': {
+    nodeoverlay:{
+      name:'gpu-time-slicing',
+      weight:'20',
+      requirements:[
+        { key:'karpenter.sh/nodepool', op:'In', values:['gpu-slices'] },
+        { key:'karpenter.k8s.aws/instance-gpu-manufacturer', op:'In', values:['nvidia'] }
+      ],
+      pricingMode:'none',
+      priceAdjustment:'',
+      price:'',
+      capacity:[{k:'nvidia.com/gpu',v:'4'}]
+    }
+  }
+};
+
+function applyPreset(id){
+  if(!id) return;
+  const p = PRESETS[id];
+  if(!p) return;
+  if(p.nodepool) Object.assign(STATE.nodepool, JSON.parse(JSON.stringify(p.nodepool)));
+  if(p.ec2nodeclass) Object.assign(STATE.ec2nodeclass, JSON.parse(JSON.stringify(p.ec2nodeclass)));
+  if(p.nodeoverlay){
+    Object.assign(STATE.nodeoverlay, JSON.parse(JSON.stringify(p.nodeoverlay)));
+    if(!p.nodepool && !p.ec2nodeclass) setView('nodeoverlay');
+  }
+  render();
+}
+
+// ============================================================
+//  IMPORT YAML (lightweight parser)
+// ============================================================
+function openImport(){
+  document.getElementById('importModal').style.display = 'flex';
+  document.getElementById('importYaml').focus();
+  document.getElementById('importFname').textContent = '';
+}
+function closeImport(){
+  document.getElementById('importModal').style.display = 'none';
+  document.getElementById('importStatus').className = 'import-status';
+  document.getElementById('importStatus').textContent = '';
+}
+function loadImportFile(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  const fnEl = document.getElementById('importFname');
+  fnEl.textContent = file.name + ' (' + file.size + ' B)';
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    document.getElementById('importYaml').value = e.target.result;
+    const status = document.getElementById('importStatus');
+    status.className = 'import-status ok';
+    status.textContent = `Loaded "${file.name}". Click Import to apply.`;
+  };
+  reader.onerror = ()=>{
+    const status = document.getElementById('importStatus');
+    status.className = 'import-status err';
+    status.textContent = 'Error reading file.';
+  };
+  reader.readAsText(file);
+  // Allow re-selecting the same file later
+  event.target.value = '';
+}
+
+// Minimal YAML parser tailored for Karpenter manifests.
+// Handles: nested maps, lists of maps, lists of scalars, quoted strings, block scalars (|), comments.
+function parseYAML(text){
+  // Strip comments and empty trailing whitespace per line
+  const rawLines = text.split('\n').map(l => l.replace(/\s+#.*$/,'').replace(/^#.*$/,'')).filter(l => l.trim() !== '' || l === '');
+  // Re-include all lines (filter above kept structure-preserving empty lines? we don't need them - drop)
+  const lines = text.split('\n').map(l => {
+    // Only strip comments that follow a space (preserve "#" inside quotes is ok for simple inputs)
+    return l.replace(/(^|\s)#.*$/, '$1').replace(/\s+$/,'');
+  }).filter(l => l.trim() !== '');
+
+  const root = {};
+  const stack = [{ obj: root, indent: -1 }];
+  let i = 0;
+
+  // Block scalar buffer
+  while(i < lines.length){
+    let line = lines[i];
+    const indent = line.match(/^(\s*)/)[1].length;
+    line = line.trimEnd();
+    const content = line.slice(indent);
+
+    // Pop stack until we're at a parent
+    while(stack.length > 1 && stack[stack.length-1].indent >= indent) stack.pop();
+    const parent = stack[stack.length-1].obj;
+
+    // List item
+    if(content.startsWith('- ')){
+      const rest = content.slice(2);
+      // Block scalar (literal/folded) inside a list item is uncommon - skip for simplicity
+      if(/^[\w."/-]+:\s*(\|[+-]?|>[+-]?)\s*$/.test(rest)){
+        // unsupported edge case - treat as null
+        ensureList(parent);
+        parent.push({});
+        i++; continue;
+      }
+      // Inline key: value -> { key: value, ... } start
+      if(rest.includes(':')){
+        const [k, ...vparts] = rest.split(':');
+        const v = vparts.join(':').trim();
+        const item = {};
+        item[k.trim()] = v ? parseScalar(v) : null;
+        ensureList(parent);
+        parent.push(item);
+        // If value empty -> next lines belong to this item (extra keys at deeper indent)
+        if(!v){
+          stack.push({ obj: item, indent: indent+2 });
+        } else {
+          // Continue at same level for next sibling - the item is single-line OR has more keys at deeper indent
+          stack.push({ obj: item, indent: indent+2 });
+        }
+      } else {
+        // Scalar list item
+        ensureList(parent);
+        parent.push(parseScalar(rest));
+      }
+      i++; continue;
+    }
+
+    // key: value | key: |  (block scalar) | key: (object follows)
+    const m = content.match(/^([\w."/-]+)\s*:\s*(.*)$/);
+    if(m){
+      const key = m[1];
+      let val = m[2];
+
+      // Block scalar
+      if(val === '|' || val === '|-' || val === '|+' || val === '>' || val === '>-' || val === '>+'){
+        const baseIndent = indent + 2; // assume +2 indentation for content
+        const buf = [];
+        i++;
+        while(i < lines.length){
+          const ln = lines[i];
+          const lnIndent = ln.match(/^(\s*)/)[1].length;
+          if(ln.trim() === ''){ buf.push(''); i++; continue; }
+          if(lnIndent < baseIndent && ln.trim() !== '') break;
+          buf.push(ln.slice(baseIndent));
+          i++;
+        }
+        parent[key] = buf.join('\n');
+        continue;
+      }
+
+      if(val === '' || val === '{}' || val === '[]'){
+        parent[key] = val === '[]' ? [] : {};
+        stack.push({ obj: parent[key], indent });
+        i++; continue;
+      }
+
+      // Inline list [a, b]
+      if(/^\[.*\]$/.test(val)){
+        const inner = val.slice(1, -1).trim();
+        parent[key] = inner ? inner.split(',').map(s => parseScalar(s.trim())) : [];
+      } else {
+        parent[key] = parseScalar(val);
+      }
+      i++; continue;
+    }
+
+    // Unrecognized line - skip
+    i++;
+  }
+  return root;
+}
+
+function ensureList(parent){ /* no-op marker; arrays handled in caller */ }
+function parseScalar(v){
+  if(v === undefined || v === null) return v;
+  v = v.trim();
+  if(v === '' || v === '~' || v.toLowerCase() === 'null') return null;
+  if(/^".*"$/.test(v)) return v.slice(1,-1).replace(/\\"/g,'"');
+  if(/^'.*'$/.test(v)) return v.slice(1,-1);
+  if(/^(true|yes|on)$/i.test(v)) return true;
+  if(/^(false|no|off)$/i.test(v)) return false;
+  if(/^-?\d+$/.test(v)) return parseInt(v);
+  if(/^-?\d+\.\d+$/.test(v)) return parseFloat(v);
+  return v;
+}
+
+// Improved parser: previous one is simplistic with list-of-maps. Use a robust approach.
+function parseYAMLDocs(text){
+  // Split by --- (multi-document) - only at start of line
+  const docs = text.split(/^---\s*$/m).map(d => d.trim()).filter(Boolean);
+  return docs.map(d => parseYAMLDoc(d));
+}
+
+// More careful single-doc parser (replaces parseYAML for our needs)
+function parseYAMLDoc(text){
+  const rawLines = text.split('\n');
+  // strip full-line comments and trailing comments (best-effort)
+  const lines = rawLines.map(l => l.replace(/^\s*#.*$/, '').replace(/(\s)#.*$/, '$1').replace(/\s+$/,''))
+                         .filter(l => l !== '');
+  let i = 0;
+
+  function getIndent(s){ const m = s.match(/^(\s*)/); return m[1].length; }
+
+  function parseBlock(parentIndent){
+    // First peek: if next non-blank line starts with "- " at current indent, parse list. Else map.
+    while(i < lines.length){
+      const ln = lines[i];
+      const ind = getIndent(ln);
+      if(ind < parentIndent) return null;
+      const content = ln.slice(ind);
+      if(content === '') { i++; continue; }
+      if(content.startsWith('- ')) return parseList(parentIndent);
+      return parseMap(parentIndent);
+    }
+    return null;
+  }
+
+  function parseMap(mapIndent){
+    const obj = {};
+    while(i < lines.length){
+      const ln = lines[i];
+      const ind = getIndent(ln);
+      if(ind < mapIndent) break;
+      if(ind > mapIndent){ i++; continue; }
+      const content = ln.slice(ind);
+      if(content.startsWith('- ')) break;
+      const m = content.match(/^([\w."/-]+)\s*:\s*(.*)$/);
+      if(!m){ i++; continue; }
+      const key = m[1];
+      const val = m[2];
+      i++;
+      if(val === '' || val === '{}' || val === '[]'){
+        if(val === '[]'){ obj[key] = []; continue; }
+        // Look ahead to determine: list (possibly compact at same indent), map, or empty
+        let j = i;
+        while(j < lines.length && lines[j].trim() === '') j++;
+        if(j >= lines.length){ obj[key] = null; continue; }
+        const nextInd = getIndent(lines[j]);
+        const nextContent = lines[j].slice(nextInd);
+        const isCompactList = (nextInd === mapIndent && nextContent.startsWith('- '));
+        if(nextInd < mapIndent || (nextInd === mapIndent && !isCompactList)){
+          obj[key] = null; continue;
+        }
+        if(nextContent.startsWith('- ')){
+          // Compact list shares the parent map's indent; nested list uses next indent
+          obj[key] = parseList(isCompactList ? mapIndent : nextInd);
+        } else {
+          obj[key] = parseMap(nextInd);
+        }
+      } else if(val === '|' || val === '|-' || val === '|+' || val === '>' || val === '>-' || val === '>+'){
+        // Block scalar
+        const folded = val.startsWith('>');
+        const buf = [];
+        let baseInd = -1;
+        while(i < lines.length){
+          const ln2 = lines[i];
+          if(ln2.trim() === ''){ buf.push(''); i++; continue; }
+          const ind2 = getIndent(ln2);
+          if(ind2 <= mapIndent) break;
+          if(baseInd === -1) baseInd = ind2;
+          buf.push(ln2.slice(baseInd));
+          i++;
+        }
+        obj[key] = folded ? buf.join(' ').replace(/\s+/g,' ').trim() : buf.join('\n');
+      } else if(/^\[.*\]$/.test(val)){
+        const inner = val.slice(1,-1).trim();
+        obj[key] = inner ? inner.split(',').map(s => parseScalar(s.trim())) : [];
+      } else {
+        obj[key] = parseScalar(val);
+      }
+    }
+    return obj;
+  }
+
+  function parseList(listIndent){
+    const arr = [];
+    while(i < lines.length){
+      const ln = lines[i];
+      const ind = getIndent(ln);
+      if(ind < listIndent) break;
+      if(ind > listIndent){ i++; continue; }
+      const content = ln.slice(ind);
+      if(!content.startsWith('- ')) break;
+      const rest = content.slice(2);
+      i++;
+      // Item is a map with first key inline, e.g. "- key: value"
+      if(rest.includes(':') && !/^[\w."/-]+:\s*(\|[+-]?|>[+-]?)\s*$/.test(rest)){
+        const m = rest.match(/^([\w."/-]+)\s*:\s*(.*)$/);
+        if(m){
+          const item = {};
+          const k = m[1]; const v = m[2];
+          if(v === ''){
+            // Need to look at next lines for nested value
+            let j = i;
+            while(j < lines.length && lines[j].trim() === '') j++;
+            if(j >= lines.length){ item[k] = null; }
+            else {
+              const nextInd = getIndent(lines[j]);
+              const nextContent = lines[j].slice(nextInd);
+              const isCompact = (nextInd === listIndent+2 && nextContent.startsWith('- '));
+              if(nextInd < listIndent+2 || (nextInd === listIndent+2 && !isCompact)){
+                item[k] = null;
+              } else if(nextContent.startsWith('- ')){
+                item[k] = parseList(isCompact ? listIndent+2 : nextInd);
+              } else {
+                item[k] = parseMap(nextInd);
+              }
+            }
+          } else if(/^\[.*\]$/.test(v)){
+            const inner = v.slice(1,-1).trim();
+            item[k] = inner ? inner.split(',').map(s => parseScalar(s.trim())) : [];
+          } else {
+            item[k] = parseScalar(v);
+          }
+          // Continue parsing additional keys for this list item at indent listIndent+2
+          while(i < lines.length){
+            const ln2 = lines[i];
+            const ind2 = getIndent(ln2);
+            if(ind2 <= listIndent) break;
+            if(ind2 !== listIndent+2){ i++; continue; }
+            const c2 = ln2.slice(ind2);
+            if(c2.startsWith('- ')) break;
+            const m2 = c2.match(/^([\w."/-]+)\s*:\s*(.*)$/);
+            if(!m2){ i++; continue; }
+            const k2 = m2[1]; const v2 = m2[2];
+            i++;
+            if(v2 === ''){
+              let j2 = i;
+              while(j2 < lines.length && lines[j2].trim() === '') j2++;
+              if(j2 >= lines.length){ item[k2] = null; }
+              else {
+                const nInd = getIndent(lines[j2]);
+                const nContent = lines[j2].slice(nInd);
+                const isCompact2 = (nInd === ind2 && nContent.startsWith('- '));
+                if(nInd < ind2 || (nInd === ind2 && !isCompact2)){
+                  item[k2] = null;
+                } else if(nContent.startsWith('- ')){
+                  item[k2] = parseList(isCompact2 ? ind2 : nInd);
+                } else {
+                  item[k2] = parseMap(nInd);
+                }
+              }
+            } else if(/^\[.*\]$/.test(v2)){
+              const inner = v2.slice(1,-1).trim();
+              item[k2] = inner ? inner.split(',').map(s => parseScalar(s.trim())) : [];
+            } else {
+              item[k2] = parseScalar(v2);
+            }
+          }
+          arr.push(item);
+          continue;
+        }
+      }
+      // Plain scalar item
+      arr.push(parseScalar(rest));
+    }
+    return arr;
+  }
+
+  // Top level: skip leading blanks
+  while(i < lines.length && lines[i].trim() === '') i++;
+  if(i >= lines.length) return null;
+  return parseMap(0);
+}
+
+function importFromObject(doc){
+  if(!doc || !doc.kind) throw new Error('Missing kind in YAML.');
+  if(doc.kind === 'NodePool'){
+    const np = STATE.nodepool;
+    np.name = (doc.metadata && doc.metadata.name) || 'imported';
+    np.labels = mapToKV((doc.metadata||{}).labels);
+    np.annotations = mapToKV((doc.metadata||{}).annotations);
+    const tplMeta = ((doc.spec||{}).template||{}).metadata || {};
+    np.tplLabels = mapToKV(tplMeta.labels);
+    np.tplAnnotations = mapToKV(tplMeta.annotations);
+    const tplSpec = ((doc.spec||{}).template||{}).spec || {};
+    np.requirements = (tplSpec.requirements||[]).map(r => ({
+      key: r.key||'', op: r.operator||'In', values: r.values || (r.values===undefined ? [] : [])
+    }));
+    if(tplSpec.nodeClassRef) np.nodeClassRefName = tplSpec.nodeClassRef.name || 'default';
+    np.taints = (tplSpec.taints||[]).map(t => ({key:t.key||'',value:t.value||'',effect:t.effect||'NoSchedule'}));
+    np.startupTaints = (tplSpec.startupTaints||[]).map(t => ({key:t.key||'',value:t.value||'',effect:t.effect||'NoSchedule'}));
+    np.expireAfter = tplSpec.expireAfter || '';
+    np.terminationGracePeriod = tplSpec.terminationGracePeriod || '';
+
+    const dis = (doc.spec||{}).disruption || {};
+    np.disruption.consolidationPolicy = dis.consolidationPolicy || 'WhenEmptyOrUnderutilized';
+    np.disruption.consolidateAfter = dis.consolidateAfter || '0s';
+    np.disruption.budgets = (dis.budgets||[]).map(b => ({
+      nodes: b.nodes ? String(b.nodes) : '',
+      reasons: b.reasons || [],
+      schedule: b.schedule || '',
+      duration: b.duration || ''
+    }));
+    if(np.disruption.budgets.length === 0) np.disruption.budgets = [{nodes:'10%',reasons:[],schedule:'',duration:''}];
+
+    const lim = (doc.spec||{}).limits || {};
+    np.limits = { cpu: lim.cpu!=null ? String(lim.cpu) : '', memory: lim.memory!=null ? String(lim.memory) : '' };
+    np.limitsNodes = lim.nodes!=null ? String(lim.nodes) : '';
+    np.customLimits = Object.entries(lim).filter(([k])=> k!=='cpu' && k!=='memory' && k!=='nodes').map(([k,v])=>({k, v:String(v)}));
+    np.weight = (doc.spec||{}).weight!=null ? String(doc.spec.weight) : '';
+    np.replicas = (doc.spec||{}).replicas!=null ? String(doc.spec.replicas) : '';
+
+    setView('nodepool');
+    BASELINE.yaml = buildNodePoolYAML();
+    BASELINE.set = true;
+    return 'NodePool';
+  }
+  if(doc.kind === 'EC2NodeClass'){
+    const ec = STATE.ec2nodeclass;
+    ec.name = (doc.metadata && doc.metadata.name) || 'imported';
+    const sp = doc.spec || {};
+    ec.amiFamily = sp.amiFamily || 'AL2023';
+    ec.amiSelectorTerms = (sp.amiSelectorTerms||[]).map(termFromObj);
+    ec.subnetSelectorTerms = (sp.subnetSelectorTerms||[]).map(termFromObj);
+    ec.securityGroupSelectorTerms = (sp.securityGroupSelectorTerms||[]).map(termFromObj);
+    ec.capacityReservationSelectorTerms = (sp.capacityReservationSelectorTerms||[]).map(termFromObj);
+    ec.role = sp.role || '';
+    ec.blockDeviceMappings = (sp.blockDeviceMappings||[]).map(b => ({
+      deviceName: b.deviceName || '',
+      volumeSize: (b.ebs||{}).volumeSize ? String((b.ebs||{}).volumeSize) : '',
+      volumeType: (b.ebs||{}).volumeType || 'gp3',
+      iops: (b.ebs||{}).iops!=null ? String((b.ebs||{}).iops) : '',
+      throughput: (b.ebs||{}).throughput!=null ? String((b.ebs||{}).throughput) : '',
+      encrypted: !!(b.ebs||{}).encrypted,
+      deleteOnTermination: (b.ebs||{}).deleteOnTermination !== false,
+      kmsKeyID: (b.ebs||{}).kmsKeyID || ''
+    }));
+    ec.instanceStorePolicy = sp.instanceStorePolicy || '';
+    ec.detailedMonitoring = !!sp.detailedMonitoring;
+    const mo = sp.metadataOptions || {};
+    ec.metadataOptions = {
+      httpEndpoint: mo.httpEndpoint || 'enabled',
+      httpProtocolIPv6: mo.httpProtocolIPv6 || 'disabled',
+      httpPutResponseHopLimit: mo.httpPutResponseHopLimit || 1,
+      httpTokens: mo.httpTokens || 'required'
+    };
+    ec.tags = mapToKV(sp.tags);
+    ec.userData = sp.userData || '';
+
+    setView('ec2nodeclass');
+    BASELINE.yaml = buildEC2NodeClassYAML();
+    BASELINE.set = true;
+    return 'EC2NodeClass';
+  }
+  if(doc.kind === 'NodeOverlay'){
+    const ov = STATE.nodeoverlay;
+    ov.name = (doc.metadata && doc.metadata.name) || 'overlay-imported';
+    const sp = doc.spec || {};
+    ov.weight = sp.weight != null ? String(sp.weight) : '';
+    ov.requirements = (sp.requirements||[]).map(r => ({
+      key: r.key||'', op: r.operator||'In', values: r.values || []
+    }));
+    if(sp.priceAdjustment){
+      ov.pricingMode = 'priceAdjustment';
+      ov.priceAdjustment = String(sp.priceAdjustment);
+      ov.price = '';
+    } else if(sp.price){
+      ov.pricingMode = 'price';
+      ov.price = String(sp.price);
+      ov.priceAdjustment = '';
+    } else {
+      ov.pricingMode = 'none';
+      ov.price = '';
+      ov.priceAdjustment = '';
+    }
+    ov.capacity = mapToKV(sp.capacity);
+    setView('nodeoverlay');
+    BASELINE.yaml = buildNodeOverlayYAML();
+    BASELINE.set = true;
+    return 'NodeOverlay';
+  }
+  throw new Error(`Unsupported kind "${doc.kind}". Expected NodePool, EC2NodeClass, or NodeOverlay.`);
+}
+
+function termFromObj(o){
+  if(!o) return {type:'tags',tags:[]};
+  if(o.tags) return {type:'tags', tags: mapToKV(o.tags)};
+  if(o.alias) return {type:'alias', value: o.alias};
+  if(o.id) return {type:'id', value: o.id};
+  if(o.name) return {type:'name', value: o.name};
+  if(o.ssm) return {type:'ssm', value: o.ssm};
+  return {type:'tags', tags:[]};
+}
+function mapToKV(m){
+  if(!m || typeof m !== 'object') return [];
+  return Object.entries(m).map(([k,v])=>({k, v: v==null?'':String(v)}));
+}
+
+function doImport(){
+  const text = document.getElementById('importYaml').value;
+  const status = document.getElementById('importStatus');
+  if(!text.trim()){
+    status.className = 'import-status err';
+    status.textContent = 'Paste a YAML manifest first.';
+    return;
+  }
+  try {
+    const docs = parseYAMLDocs(text);
+    let imported = [];
+    for(const d of docs){
+      try { imported.push(importFromObject(d)); } catch(e) { /* skip bad doc, keep going */ }
+    }
+    if(!imported.length) throw new Error('No NodePool or EC2NodeClass document found.');
+    status.className = 'import-status ok';
+    status.textContent = `Imported: ${imported.join(', ')}. Form populated. Diff baseline saved.`;
+    render();
+    setTimeout(closeImport, 1200);
+  } catch(e){
+    status.className = 'import-status err';
+    status.textContent = 'Parse error: ' + e.message;
+  }
+}
+
+// ============================================================
+//  DIFF VIEW
+// ============================================================
+const BASELINE = { yaml: '', set: false, on: false };
+
+function toggleDiff(){
+  if(!BASELINE.set){
+    // First click: set baseline as current
+    BASELINE.yaml = STATE.view==='nodepool' ? buildNodePoolYAML() : buildEC2NodeClassYAML();
+    BASELINE.set = true;
+    BASELINE.on = true;
+    flash('Diff baseline set. Edit fields to see changes.');
+  } else {
+    BASELINE.on = !BASELINE.on;
+  }
+  document.getElementById('diffBtn').classList.toggle('btn-primary', BASELINE.on);
+  document.getElementById('diffBtn').classList.toggle('btn-ghost', !BASELINE.on);
+  render();
+}
+
+// Simple LCS-based diff for line arrays
+function lcsDiff(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array(m+1).fill(null).map(()=>Array(n+1).fill(0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    if(a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1] + 1;
+    else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+  }
+  const out = [];
+  let i = m, j = n;
+  while(i>0 && j>0){
+    if(a[i-1] === b[j-1]){ out.unshift({type:'ctx', line:a[i-1]}); i--; j--; }
+    else if(dp[i-1][j] >= dp[i][j-1]){ out.unshift({type:'del', line:a[i-1]}); i--; }
+    else { out.unshift({type:'add', line:b[j-1]}); j--; }
+  }
+  while(i>0){ out.unshift({type:'del', line:a[i-1]}); i--; }
+  while(j>0){ out.unshift({type:'add', line:b[j-1]}); j--; }
+  return out;
+}
+
+function renderDiff(currentYaml){
+  const baseLines = BASELINE.yaml.split('\n');
+  const curLines = currentYaml.split('\n');
+  const diff = lcsDiff(baseLines, curLines);
+  let adds = 0, dels = 0;
+  const html = diff.map(d=>{
+    if(d.type==='add'){ adds++; return `<span class="diff-add">+ ${esc(d.line)}</span>`; }
+    if(d.type==='del'){ dels++; return `<span class="diff-del">- ${esc(d.line)}</span>`; }
+    return `<span class="diff-ctx">  ${esc(d.line)}</span>`;
+  }).join('');
+  document.getElementById('diffAdds').textContent = `+${adds}`;
+  document.getElementById('diffDels').textContent = `-${dels}`;
+  return html;
+}
+
+// ============================================================
+//  ACTIONS
+// ============================================================
+function setView(view){
+  STATE.view = view;
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.view===view);
+  });
+  render();
+}
+function copyYAML(){
+  const yaml = currentYAML();
+  navigator.clipboard.writeText(yaml).then(()=>{
+    flash('YAML copiado.');
+  }).catch(()=>{
+    // fallback: select and copy via textarea
+    const ta = document.createElement('textarea');
+    ta.value = yaml; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); flash('YAML copiado.'); }catch(e){ alert('Falha ao copiar.'); }
+    document.body.removeChild(ta);
+  });
+}
+function downloadYAML(){
+  const yaml = currentYAML();
+  let fname;
+  if(STATE.view==='nodepool') fname = `nodepool-${(STATE.nodepool.name||'default')}.yaml`;
+  else if(STATE.view==='ec2nodeclass') fname = `ec2nodeclass-${(STATE.ec2nodeclass.name||'default')}.yaml`;
+  else fname = `nodeoverlay-${(STATE.nodeoverlay.name||'default')}.yaml`;
+  const blob = new Blob([yaml], {type:'text/yaml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function downloadCombined(){
+  const ec = buildEC2NodeClassYAML();
+  const np = buildNodePoolYAML();
+  let yaml = ec + '---\n' + np;
+
+  // Include NodeOverlay only if it's meaningfully configured (not the default starter)
+  const ov = STATE.nodeoverlay;
+  const ovHasOverride = (ov.pricingMode==='priceAdjustment' && ov.priceAdjustment) ||
+                        (ov.pricingMode==='price' && ov.price) ||
+                        (ov.capacity||[]).some(c=>c.k);
+  if(ovHasOverride){
+    yaml += '---\n' + buildNodeOverlayYAML();
+  }
+
+  const fname = `karpenter-${(STATE.nodepool.name||'default')}.yaml`;
+  const blob = new Blob([yaml], {type:'text/yaml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  flash(ovHasOverride
+    ? 'Combined YAML downloaded (EC2NodeClass + NodePool + NodeOverlay).'
+    : 'Combined YAML downloaded (EC2NodeClass + NodePool).');
+}
+function flash(msg){
+  let f = document.getElementById('toast');
+  if(!f){
+    f = document.createElement('div');
+    f.id='toast';
+    f.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+    document.body.appendChild(f);
+  }
+  f.textContent = msg;
+  f.style.opacity='1';
+  clearTimeout(f._t);
+  f._t = setTimeout(()=>{ f.style.transition='opacity .4s'; f.style.opacity='0'; }, 1500);
+}
+
+// ============================================================
+//  MAIN RENDER
+// ============================================================
+function render(){
+  const body = document.getElementById('formBody');
+  const title = document.getElementById('formTitle');
+  const sub = document.getElementById('formSub');
+  const fname = document.getElementById('yamlFile');
+  const meta = document.getElementById('yamlMeta');
+
+  if(STATE.view === 'nodepool'){
+    title.textContent = 'NodePool Editor';
+    sub.textContent = 'Configure provisioning constraints & disruption';
+    fname.textContent = `nodepool-${STATE.nodepool.name||'default'}.yaml`;
+    body.innerHTML = renderNodePool();
+  } else if(STATE.view === 'ec2nodeclass'){
+    title.textContent = 'EC2NodeClass Editor';
+    sub.textContent = 'AMI, networking, IAM & block storage';
+    fname.textContent = `ec2nodeclass-${STATE.ec2nodeclass.name||'default'}.yaml`;
+    body.innerHTML = renderEC2NodeClass();
+  } else {
+    title.textContent = 'NodeOverlay Editor';
+    sub.textContent = 'v1alpha1 - inject pricing & capacity overrides';
+    fname.textContent = `nodeoverlay-${STATE.nodeoverlay.name||'default'}.yaml`;
+    body.innerHTML = renderNodeOverlay();
+  }
+  meta.textContent = 'live preview';
+
+  const yaml = currentYAML();
+  const yamlPre = document.getElementById('yamlPre');
+  const diffToolbar = document.getElementById('diffToolbar');
+  if(BASELINE.on && BASELINE.set){
+    yamlPre.classList.add('diff');
+    diffToolbar.style.display = 'flex';
+    document.getElementById('yamlOut').innerHTML = renderDiff(yaml);
+  } else {
+    yamlPre.classList.remove('diff');
+    diffToolbar.style.display = 'none';
+    document.getElementById('yamlOut').innerHTML = highlightYAML(yaml);
+  }
+  document.getElementById('validator').innerHTML = renderValidator();
+}
+
+function currentYAML(){
+  if(STATE.view === 'nodepool') return buildNodePoolYAML();
+  if(STATE.view === 'ec2nodeclass') return buildEC2NodeClassYAML();
+  return buildNodeOverlayYAML();
+}
+
+// ============================================================
+//  SCHEDULE VISUALIZER
+// ============================================================
+const BUDGET_COLORS = ['#5f259f','#0972d3','#8d6605','#037f0c','#d91515','#0288a3','#9c27b0','#6c4f00'];
+const DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DOW_MAP = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
+
+function parseCronField(field, min, max, isMonthOrDow){
+  // Returns Set<int> of allowed values
+  if(field === '*' || field === '?') {
+    const s = new Set();
+    for(let i=min; i<=max; i++) s.add(i);
+    return s;
+  }
+  const out = new Set();
+  field.split(',').forEach(part=>{
+    let step = 1;
+    if(part.includes('/')){ const [p, st] = part.split('/'); part = p; step = parseInt(st)||1; }
+    if(part === '*'){
+      for(let i=min; i<=max; i+=step) out.add(i);
+      return;
+    }
+    let lo, hi;
+    if(part.includes('-')){
+      const [a, b] = part.split('-');
+      lo = parseValue(a, min, isMonthOrDow);
+      hi = parseValue(b, min, isMonthOrDow);
+    } else {
+      lo = parseValue(part, min, isMonthOrDow);
+      hi = lo;
+    }
+    if(lo == null || hi == null) return;
+    for(let i=lo; i<=hi; i+=step) out.add(i);
+  });
+  return out;
+}
+function parseValue(v, min, isMonthOrDow){
+  v = v.trim().toLowerCase();
+  if(/^\d+$/.test(v)) return parseInt(v);
+  if(isMonthOrDow && DOW_MAP[v.slice(0,3)] !== undefined) return DOW_MAP[v.slice(0,3)];
+  return null;
+}
+
+// Parse 5-field cron + return {minutes, hours, dows}
+function parseCron(cron){
+  if(!cron) return null;
+  const parts = cron.trim().split(/\s+/);
+  if(parts.length !== 5) return null;
+  return {
+    minutes: parseCronField(parts[0], 0, 59, false),
+    hours:   parseCronField(parts[1], 0, 23, false),
+    dom:     parseCronField(parts[2], 1, 31, false),
+    months:  parseCronField(parts[3], 1, 12, false),
+    dows:    parseCronField(parts[4], 0, 6, true)
+  };
+}
+
+// Convert duration string to hours (decimal). "8h" -> 8, "30m" -> 0.5, "2d" -> 48, "168h0m0s" -> 168
+function durationHours(dur){
+  if(!dur || /^never$/i.test(dur)) return null;
+  let total = 0;
+  const re = /(\d+)\s*(s|m|h|d|w)/gi;
+  let m, found = false;
+  while((m = re.exec(dur)) !== null){
+    found = true;
+    const n = parseInt(m[1]);
+    const u = m[2].toLowerCase();
+    if(u==='s') total += n/3600;
+    else if(u==='m') total += n/60;
+    else if(u==='h') total += n;
+    else if(u==='d') total += n*24;
+    else if(u==='w') total += n*168;
+  }
+  return found ? total : null;
+}
+
+function renderScheduleViz(budgets){
+  if(!budgets || !budgets.length) return '';
+  // Compute active cells: for each budget, find all (dow, hour) starts and expand by duration
+  const W = 7 * 24; // 168 hour-slots
+  const perBudget = budgets.map((b, idx)=>{
+    const cells = new Array(W).fill(false);
+    if(!b.schedule){
+      // No schedule = always active
+      cells.fill(true);
+      return { idx, cells, label: budgetLabel(b, idx), always:true, valid:true };
+    }
+    const cron = parseCron(b.schedule);
+    if(!cron) return { idx, cells, label: budgetLabel(b, idx), always:false, valid:false };
+    const durH = durationHours(b.duration) || 1;
+    // Find starts: for each (dow, hour) where cron fires (assume minute=0 for visualization)
+    for(let d=0; d<7; d++){
+      if(!cron.dows.has(d)) continue;
+      for(let h=0; h<24; h++){
+        if(!cron.hours.has(h)) continue;
+        if(!cron.minutes.has(0)) continue; // visualization at top-of-hour resolution
+        // Mark cells for this fire: [d*24+h, d*24+h+durH) wrapping the week
+        const start = d*24 + h;
+        const fillCount = Math.ceil(durH);
+        for(let off=0; off<fillCount; off++){
+          cells[(start + off) % W] = true;
+        }
+      }
+    }
+    return { idx, cells, label: budgetLabel(b, idx), always:false, valid:true };
+  });
+
+  // SVG geometry
+  const dayLabelW = 32;
+  const cellW = 22;
+  const cellH = 14;
+  const headerH = 18;
+  const totalW = dayLabelW + 24*cellW + 8;
+  const totalH = headerH + 7*cellH + 4;
+
+  let svg = `<svg class="schedule-svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMinYMin meet">`;
+  // Background
+  svg += `<rect class="grid-bg" x="${dayLabelW}" y="${headerH}" width="${24*cellW}" height="${7*cellH}" rx="3"/>`;
+
+  // Hour axis (every 3h)
+  for(let h=0; h<=24; h++){
+    const x = dayLabelW + h*cellW;
+    if(h % 3 === 0){
+      svg += `<line class="grid-line" x1="${x}" y1="${headerH}" x2="${x}" y2="${headerH + 7*cellH}"/>`;
+      svg += `<text class="axis-label" x="${x}" y="${headerH-4}" text-anchor="middle">${h}h</text>`;
+    }
+  }
+  // Day rows
+  for(let d=0; d<7; d++){
+    const y = headerH + d*cellH;
+    if(d>0) svg += `<line class="grid-line-h" x1="${dayLabelW}" y1="${y}" x2="${dayLabelW + 24*cellW}" y2="${y}"/>`;
+    svg += `<text class="day-label" x="${dayLabelW-6}" y="${y + cellH - 4}">${DOW_NAMES[d]}</text>`;
+  }
+  // Active cells per budget (stacked layered)
+  perBudget.forEach((b, bi)=>{
+    if(!b.valid) return;
+    const color = BUDGET_COLORS[bi % BUDGET_COLORS.length];
+    // Compute opacity: solo budget = 0.85, otherwise lighter to allow stacking
+    const op = perBudget.length > 1 ? 0.55 : 0.85;
+    // Find runs of consecutive active cells per row to draw fewer rects
+    for(let d=0; d<7; d++){
+      let runStart = -1;
+      for(let h=0; h<=24; h++){
+        const idx = d*24 + h;
+        const active = h<24 && b.cells[idx];
+        if(active && runStart === -1) runStart = h;
+        if((!active || h===24) && runStart !== -1){
+          const x = dayLabelW + runStart*cellW;
+          const y = headerH + d*cellH + 1;
+          const w = (h - runStart) * cellW;
+          const hh = cellH - 2;
+          const tooltip = `${b.label}${b.always?' (always active)':''}`;
+          svg += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="2" fill="${color}" fill-opacity="${op}"><title>${esc(tooltip)}</title></rect>`;
+          runStart = -1;
+        }
+      }
+    }
+  });
+  svg += `</svg>`;
+
+  const legend = perBudget.map((b, bi)=>{
+    const color = BUDGET_COLORS[bi % BUDGET_COLORS.length];
+    const status = !b.valid ? '<span class="meta" style="color:var(--red);">invalid cron</span>' :
+                   b.always ? '<span class="meta">always active</span>' : '';
+    return `<div class="item">
+      <span class="swatch" style="background:${color};"></span>
+      <span>${esc(b.label)}</span>
+      ${status}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="schedule-viz">
+      <div class="sv-hd">
+        ${ICONS.calendar}
+        <span class="ttl">Schedule preview</span>
+        <span class="sub">week-long view, hover for details</span>
+      </div>
+      ${svg}
+      <div class="schedule-legend">${legend}</div>
+    </div>`;
+}
+
+function budgetLabel(b, idx){
+  const parts = [`#${idx+1}`];
+  if(b.nodes) parts.push(b.nodes);
+  if(b.reasons && b.reasons.length) parts.push(b.reasons.join('+'));
+  if(b.schedule) parts.push(`cron: ${b.schedule}`);
+  if(b.duration) parts.push(`for ${b.duration}`);
+  return parts.join(' · ');
+}
+const STORAGE_KEY = 'karpenter-ui-state-v1';
+
+function saveToStorage(){
+  try {
+    const payload = JSON.stringify({ view: STATE.view, nodepool: STATE.nodepool, ec2nodeclass: STATE.ec2nodeclass });
+    localStorage.setItem(STORAGE_KEY, payload);
+  } catch(e){ /* quota / private mode - silently ignore */ }
+}
+function loadFromStorage(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data.nodepool) Object.assign(STATE.nodepool, data.nodepool);
+    if(data.ec2nodeclass) Object.assign(STATE.ec2nodeclass, data.ec2nodeclass);
+    if(data.view) STATE.view = data.view;
+    // Re-sync tabs UI
+    document.querySelectorAll('.tab').forEach(t=>{
+      t.classList.toggle('active', t.dataset.view===STATE.view);
+    });
+    return true;
+  } catch(e){ return false; }
+}
+function clearStorage(){
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+}
+let _saveDebounce;
+function setupAutoSave(){
+  // Debounced save: every form change funnels through render() eventually,
+  // so we wrap render() to also save state.
+  const origRender = render;
+  window.render = function(){
+    origRender();
+    clearTimeout(_saveDebounce);
+    _saveDebounce = setTimeout(saveToStorage, 250);
+  };
+}
+
+// Update reset to also clear storage
+function resetForm(){
+  if(!confirm('Reset all fields and clear saved state? Unsaved changes will be lost.')) return;
+  clearStorage();
+  location.reload();
+}
+
+// ============================================================
+//  DRAG & DROP IMPORT
+// ============================================================
+function setupDragDrop(){
+  const modal = document.getElementById('importModal');
+  const ta = document.getElementById('importYaml');
+  if(!modal || !ta) return;
+
+  ['dragenter','dragover'].forEach(ev=>{
+    ta.addEventListener(ev, e=>{
+      e.preventDefault(); e.stopPropagation();
+      ta.style.borderColor = 'var(--karp)';
+      ta.style.background = 'var(--karp-soft)';
+    });
+  });
+  ['dragleave','drop'].forEach(ev=>{
+    ta.addEventListener(ev, e=>{
+      e.preventDefault(); e.stopPropagation();
+      ta.style.borderColor = '';
+      ta.style.background = '';
+    });
+  });
+  ta.addEventListener('drop', e=>{
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!file) return;
+    document.getElementById('importFname').textContent = file.name + ' (' + file.size + ' B)';
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      ta.value = ev.target.result;
+      const status = document.getElementById('importStatus');
+      status.className = 'import-status ok';
+      status.textContent = `Loaded "${file.name}" via drag & drop. Click Import to apply.`;
+    };
+    reader.readAsText(file);
+  });
+
+  // Also allow drop anywhere in modal body to load file
+  const body = modal.querySelector('.modal-bd');
+  if(body){
+    body.addEventListener('dragover', e=>{ e.preventDefault(); });
+    body.addEventListener('drop', e=>{
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file && e.target !== ta){
+        e.preventDefault();
+        // Trigger same handler by dispatching to textarea
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        const evt = new DragEvent('drop', { dataTransfer: dt, bubbles: true });
+        ta.dispatchEvent(evt);
+      }
+    });
+  }
+}
+
+// Init
+const _restored = loadFromStorage();
+render();
+setupAutoSave();
+setupDragDrop();
+if(_restored) setTimeout(()=>flash('Restored last session from local storage.'), 200);
+</script>
+</body>
+</html>

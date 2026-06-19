@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Timer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Amazon Ember', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            transition: background 0.5s ease;
+            overflow-x: hidden;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        /* Themes */
+        body.theme-white {
+            background-color: #ffffff;
+            background-image: none;
+        }
+
+        body.theme-aws {
+            background-color: #232F3E;
+            background-image: url('backgrounds/aws.jpeg');
+            background-position: right center;
+            background-size: 95% auto;
+        }
+
+        body.theme-kubernetes {
+            background-color: #326CE5;
+            background-image: url('backgrounds/k8sv2.png');
+            background-position: right center;
+            background-size: 48% auto;
+            background-repeat: no-repeat;
+        }
+
+        body.theme-powered {
+            background-color: #1b1b2f;
+            background-image: url('backgrounds/poweredbyaws_new.png');
+            background-position: right center;
+            background-size: 80% auto;
+        }
+
+        body.theme-aws2 {
+            background-color: #1a2332;
+            background-image: url('backgrounds/aws2.jpeg');
+            background-position: right center;
+            background-size: 55% auto;
+        }
+
+        body.theme-survey {
+            background-color: #232F3E;
+            background-image: none;
+        }
+
+        body.theme-custom {
+            background-color: #232F3E;
+            background-image: none;
+        }
+
+        body.theme-survey #page,
+        body.theme-custom #page {
+            max-width: 50%;
+        }
+
+        body.theme-survey .survey-panel {
+            display: flex;
+            position: fixed;
+            top: 50px;
+            right: 0;
+            width: 50%;
+            height: calc(100vh - 50px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2em;
+            z-index: 10;
+        }
+
+        body.theme-custom .custom-panel {
+            display: flex;
+            position: fixed;
+            top: 50px;
+            right: 0;
+            width: 50%;
+            height: calc(100vh - 50px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2em;
+            z-index: 10;
+        }
+
+        body.theme-custom .custom-panel img {
+            max-width: 90%;
+            max-height: 85%;
+            object-fit: contain;
+        }
+
+        body.theme-survey .survey-panel img {
+            max-width: 85%;
+            max-height: 70%;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            background: #ffffff;
+            padding: 16px;
+            display: none;
+        }
+
+        body.theme-survey .survey-panel.has-image img {
+            display: block;
+        }
+
+        body.theme-survey .survey-msg {
+            margin-top: 1em;
+            color: #ffffff;
+            font-size: 1.8em;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 65%;
+            font-weight: 500;
+        }
+
+        body.theme-survey .survey-arrow {
+            font-size: 3.5em;
+            color: #FF9900;
+            margin-bottom: 0.3em;
+            animation: bounce 1.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .survey-panel {
+            display: none;
+        }
+
+        .custom-panel {
+            display: none;
+        }
+
+        .survey-upload-area {
+            display: none;
+            position: fixed;
+            top: 50px;
+            right: 0;
+            width: 50%;
+            height: calc(100vh - 50px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2em;
+            z-index: 10;
+        }
+
+        body.theme-survey .survey-upload-area {
+            display: flex;
+        }
+
+        body.theme-custom .custom-upload-area {
+            display: flex;
+        }
+
+        body.theme-survey .survey-panel.has-image ~ .survey-upload-area {
+            display: none;
+        }
+
+        body.theme-survey .survey-panel.has-image {
+            display: flex;
+        }
+
+        body.theme-custom .custom-panel.has-image ~ .custom-upload-area {
+            display: none;
+        }
+
+        body.theme-custom .custom-panel.has-image {
+            display: flex;
+        }
+
+        /* Hide survey-msg when no image loaded (before upload) */
+        body.theme-survey .survey-msg-wrapper {
+            display: none;
+        }
+
+        body.theme-survey .survey-panel.has-image .survey-msg-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .custom-upload-area {
+            display: none;
+            position: fixed;
+            top: 50px;
+            right: 0;
+            width: 50%;
+            height: calc(100vh - 50px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2em;
+            z-index: 10;
+        }
+
+        .upload-dropzone {
+            border: 3px dashed rgba(255,255,255,0.5);
+            border-radius: 16px;
+            padding: 3em;
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            max-width: 80%;
+        }
+
+        .upload-dropzone:hover {
+            border-color: #FF9900;
+            background: rgba(255,153,0,0.1);
+            color: #ffffff;
+        }
+
+        .upload-dropzone input {
+            display: none;
+        }
+
+        /* Overlay for readability on image backgrounds */
+        body:not(.theme-white)::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top bar - Kubernetes blue */
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            background: rgba(50, 108, 229, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 3px solid #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-bar select, .top-bar button {
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .top-bar select option {
+            background: #326CE5;
+            color: #ffffff;
+        }
+
+        .top-bar select:hover, .top-bar button:hover {
+            border-color: #ffffff;
+            background: rgba(255,255,255,0.25);
+        }
+
+        .top-bar select:focus, .top-bar button:focus {
+            outline: none;
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+        }
+
+        .top-bar .separator {
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .top-bar label {
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        /* Main content - left aligned to show background on themed views */
+        #page {
+            position: relative;
+            z-index: 1;
+            padding: 2em 2em 2em 3em;
+            min-height: calc(100vh - 50px);
+        }
+
+        body:not(.theme-white) #page {
+            max-width: 55%;
+        }
+
+        body.theme-white #page {
+            padding: 2em 5em;
+        }
+
+        .title {
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            font-size: 2em;
+            padding: 8px 15px;
+            font-family: 'Amazon Ember', Verdana, Arial, sans-serif;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        body.theme-white .title {
+            background-color: #326CE5;
+            color: #ffffff;
+        }
+
+        #message {
+            width: 100%;
+            font-size: 4em;
+            font-family: 'Amazon Ember', Verdana, Arial, sans-serif;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            padding: 10px 15px;
+            resize: vertical;
+            transition: border-color 0.3s;
+            background: rgba(255,255,255,0.95);
+            color: #232F3E;
+        }
+
+        #message:focus {
+            outline: none;
+            border-color: #326CE5;
+        }
+
+        body.theme-white #message {
+            background: #fafafa;
+            border-color: #e0e0e0;
+        }
+
+        iframe {
+            border: none;
+            width: 100%;
+            height: 25vh;
+            min-height: 200px;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .spacer { height: 1em; }
+
+    </style>
+</head>
+<body class="theme-white">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+        <label for="lang-select"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></label>
+        <select id="lang-select" onchange="changeLanguage(this.value)">
+            <option value="pt-BR">Portugues (BR)</option>
+            <option value="en-US">English (US)</option>
+            <option value="es">Espanol</option>
+        </select>
+
+        <div class="separator"></div>
+
+        <label for="theme-select"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-5.5-4.5-9.9-10-9.9z"/><circle cx="7.5" cy="11.5" r="1.5" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="14.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="11.5" r="1.5" fill="currentColor"/></svg></label>
+        <select id="theme-select" onchange="changeTheme(this.value)">
+            <option value="white">Default</option>
+            <option value="aws">AWS</option>
+            <option value="aws2">AWS 2</option>
+            <option value="kubernetes">Kubernetes</option>
+            <option value="powered">Powered by AWS</option>
+            <option value="survey">Survey</option>
+            <option value="custom">Custom</option>
+        </select>
+
+        <div class="separator"></div>
+
+        <button onclick="resizeText(1)" title="Aumentar fonte">A+</button>
+        <button onclick="resizeText(-1)" title="Diminuir fonte">A-</button>
+        <button onclick="toggleFullScreen()" title="Tela cheia">⛶</button>
+    </div>
+
+    <div id="page">
+        <div class="title" id="title-activity">O que estamos fazendo agora?</div>
+        <textarea id="message" rows="2" placeholder=""></textarea>
+        <div class="spacer"></div>
+        <div class="title" id="title-time">Quanto tempo ainda temos?</div>
+        <div class="spacer"></div>
+        <iframe src="https://e.ggtimer.com/"></iframe>
+    </div>
+
+    <!-- Survey panel -->
+    <div class="survey-panel" id="survey-panel">
+        <img id="survey-qr" src="" alt="QR Code Survey" />
+        <div class="survey-msg-wrapper">
+            <div class="survey-arrow">&#x2B06;</div>
+            <div class="survey-msg" id="survey-msg">Preencha nossa survey acima - sua opinião é essencial para melhorarmos continuamente.</div>
+        </div>
+    </div>
+
+    <div class="survey-upload-area" id="survey-upload-area">
+        <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('qr-input').click()">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <br/>
+            <span id="upload-label">Arraste o QR Code aqui ou clique para selecionar</span>
+            <input type="file" id="qr-input" accept="image/*" onchange="handleQRUpload(event)" />
+        </div>
+    </div>
+
+    <!-- Custom/Brand panel -->
+    <div class="custom-panel" id="custom-panel">
+        <img id="custom-logo" src="" alt="" />
+    </div>
+
+    <div class="custom-upload-area" id="custom-upload-area">
+        <div class="upload-dropzone" id="custom-dropzone" onclick="document.getElementById('logo-input').click()">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <br/>
+            <span id="custom-upload-label">Arraste o logo aqui ou clique para selecionar</span>
+            <input type="file" id="logo-input" accept="image/*" onchange="handleLogoUpload(event)" />
+        </div>
+    </div>
+
+    <script>
+        // CloudWatch RUM
+        (function(n,i,v,r,s,c,x,z){x=window.AwsRumClient={q:[],n:n,i:i,v:v,r:r,c:c};window[n]=function(c,p){x.q.push({c:c,p:p})};z=document.createElement('script');z.async=true;z.src=s;document.head.insertBefore(z,document.head.getElementsByTagName('script')[0])})('cwr','d04a37af-7dfb-475a-b7de-6eec85f097fc','1.0.0','sa-east-1','https://client.rum.us-east-1.amazonaws.com/1.18.0/cwr.js',{sessionSampleRate:1,identityPoolId:'sa-east-1:584e9339-3eb0-4431-a8e1-c13d3399dffd',endpoint:'https://dataplane.rum.sa-east-1.amazonaws.com',telemetries:['performance','errors','http'],allowCookies:false,enableXRay:false});
+    </script>
+
+    <script>
+        // i18n translations
+        const i18n = {
+            'pt-BR': {
+                titleActivity: 'O que estamos fazendo agora?',
+                titleTime: 'Quanto tempo ainda temos?',
+                themes: ['Default', 'AWS', 'AWS 2', 'Kubernetes', 'Powered by AWS', 'Survey', 'Custom'],
+                surveyMsg: 'Preencha nossa survey acima - sua opinião é essencial para melhorarmos continuamente.',
+                uploadLabel: 'Arraste o QR Code aqui ou clique para selecionar',
+                customUploadLabel: 'Arraste o logo aqui ou clique para selecionar'
+            },
+            'en-US': {
+                titleActivity: 'What are we doing right now?',
+                titleTime: 'How much time do we have left?',
+                themes: ['Default', 'AWS', 'AWS 2', 'Kubernetes', 'Powered by AWS', 'Survey', 'Custom'],
+                surveyMsg: 'Please fill out our survey above - your feedback is essential for us to keep improving.',
+                uploadLabel: 'Drag the QR Code here or click to select',
+                customUploadLabel: 'Drag your logo here or click to select'
+            },
+            'es': {
+                titleActivity: 'Que estamos haciendo ahora?',
+                titleTime: 'Cuanto tiempo nos queda?',
+                themes: ['Default', 'AWS', 'AWS 2', 'Kubernetes', 'Powered by AWS', 'Survey', 'Custom'],
+                surveyMsg: 'Completa nuestra encuesta arriba - tu opinión es esencial para que sigamos mejorando.',
+                uploadLabel: 'Arrastra el QR Code aqui o haz clic para seleccionar',
+                customUploadLabel: 'Arrastra el logo aqui o haz clic para seleccionar'
+            }
+        };
+
+        let currentLang = 'pt-BR';
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            document.getElementById('title-activity').textContent = i18n[lang].titleActivity;
+            document.getElementById('title-time').textContent = i18n[lang].titleTime;
+            document.getElementById('survey-msg').textContent = i18n[lang].surveyMsg;
+            document.getElementById('upload-label').textContent = i18n[lang].uploadLabel;
+            document.getElementById('custom-upload-label').textContent = i18n[lang].customUploadLabel;
+            localStorage.setItem('timer-lang', lang);
+            if (window.cwr) cwr('recordEvent', {type:'language_change', data:{language: lang}});
+
+            // Update theme select options
+            const themeSelect = document.getElementById('theme-select');
+            const themes = i18n[lang].themes;
+            for (let i = 0; i < themes.length; i++) {
+                themeSelect.options[i].text = themes[i];
+            }
+        }
+
+        function changeTheme(theme) {
+            document.body.className = 'theme-' + theme;
+            localStorage.setItem('timer-theme', theme);
+            if (window.cwr) cwr('recordEvent', {type:'theme_change', data:{theme: theme}});
+        }
+
+        function resizeText(multiplier) {
+            const elem = document.getElementById('message');
+            const current = parseFloat(window.getComputedStyle(elem).fontSize);
+            elem.style.fontSize = (current + (multiplier * 4)) + 'px';
+        }
+
+        function toggleFullScreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        }
+
+        // QR Code upload handling
+        function handleQRUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            loadQRImage(file);
+        }
+
+        function loadQRImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('survey-qr');
+                img.src = e.target.result;
+                document.getElementById('survey-panel').classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Custom logo upload handling
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            loadLogoImage(file);
+        }
+
+        function loadLogoImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('custom-logo');
+                img.src = e.target.result;
+                document.getElementById('custom-panel').classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Drag and drop - Survey
+        const dropzone = document.getElementById('upload-dropzone');
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#FF9900';
+            this.style.background = 'rgba(255,153,0,0.15)';
+        });
+        dropzone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+        });
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadQRImage(file);
+            }
+        });
+
+        // Drag and drop - Custom
+        const customDrop = document.getElementById('custom-dropzone');
+        customDrop.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#FF9900';
+            this.style.background = 'rgba(255,153,0,0.15)';
+        });
+        customDrop.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+        });
+        customDrop.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadLogoImage(file);
+            }
+        });
+
+        // Restore saved preferences
+        (function() {
+            const savedTheme = localStorage.getItem('timer-theme');
+            const savedLang = localStorage.getItem('timer-lang');
+            if (savedTheme) {
+                document.body.className = 'theme-' + savedTheme;
+                document.getElementById('theme-select').value = savedTheme;
+            }
+            if (savedLang) {
+                document.getElementById('lang-select').value = savedLang;
+                changeLanguage(savedLang);
+            }
+        })();
+    </script>
+</body>
+</html>
