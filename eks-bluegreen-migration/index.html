@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>EKS Blue/Green Cluster Migration</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai-sublime.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--sidebar-w:280px;--topbar-h:56px;--font-body:'Amazon Ember','Helvetica Neue',Roboto,Arial,sans-serif;--aws-orange:#FF9900;--aws-squid:#232F3E;--text:#16191f;--text-secondary:#545b64;--border:#d5dbdb;--bg-page:#fafafa;--bg-content:#fff;--link:#0073bb;--info-bg:#f2f8fd;--info-border:#0073bb;--warn-bg:#fef8f0;--warn-border:#ff9900;--success-bg:#f2f8f0;--success-border:#1d8102}
+body{font-family:var(--font-body);color:var(--text);background:var(--bg-page);line-height:1.6;font-size:15px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Top bar */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);background:var(--aws-squid);display:flex;align-items:center;padding:0 24px;z-index:100}
+.topbar-title{color:#fff;font-size:1rem;font-weight:600}
+.topbar-title span{color:var(--aws-orange);margin-right:8px}
+
+/* Sidebar */
+.sidebar{position:fixed;top:var(--topbar-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--topbar-h));overflow-y:auto;background:#fff;border-right:1px solid var(--border);padding:20px 0}
+.sidebar-section{padding:8px 20px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary)}
+.sidebar a{display:block;padding:8px 20px 8px 28px;font-size:.88rem;color:var(--text);border-left:3px solid transparent;transition:all .15s}
+.sidebar a:hover{background:var(--info-bg);text-decoration:none}
+.sidebar a.active{border-left-color:var(--aws-orange);background:var(--info-bg);font-weight:600;color:var(--link)}
+
+/* Content */
+.content{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:40px 48px;max-width:820px}
+.content h1{font-size:1.8rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+.content h2{font-size:1.3rem;margin:2rem 0 .8rem;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.content h3{font-size:1.05rem;margin:1.5rem 0 .5rem;color:var(--text)}
+.content p{margin:.6rem 0}
+.content ul,.content ol{padding-left:1.5rem;margin:.5rem 0}
+.content li{margin:4px 0}
+.content table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+.content th,.content td{padding:10px 14px;border:1px solid var(--border);text-align:left}
+.content th{background:var(--bg-page);font-weight:600}
+
+/* Callout boxes (Workshop Studio style) */
+.callout{padding:16px 20px;margin:1.2rem 0;border-radius:4px;border-left:4px solid;font-size:.92rem}
+.callout-info{background:var(--info-bg);border-color:var(--info-border)}
+.callout-warn{background:var(--warn-bg);border-color:var(--warn-border)}
+.callout-success{background:var(--success-bg);border-color:var(--success-border)}
+.callout strong{display:block;margin-bottom:4px;font-size:.82rem;text-transform:uppercase;letter-spacing:.3px}
+
+/* Code - Terminal style (VS Code minimal, amber text) */
+pre{position:relative;margin:1rem 0;border-radius:6px;background:#1e1e1e;overflow:hidden;border:1px solid #333;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+pre code{display:block;padding:18px 20px;overflow-x:auto;font-size:.85rem;font-family:'Cascadia Code','Fira Code','JetBrains Mono',Consolas,monospace;line-height:1.7;color:#e8d5a3;background:transparent}
+.copy-btn{position:absolute;top:8px;right:10px;padding:3px 10px;border:1px solid #444;border-radius:4px;background:#2a2a2a;font-size:.7rem;cursor:pointer;color:#888;z-index:10}
+.copy-btn:hover{background:#333;color:#e8d5a3}
+code{background:#2a2a2a;color:#e8d5a3;padding:2px 6px;border-radius:4px;font-size:.85em;font-family:'Cascadia Code','Fira Code',Consolas,monospace}
+
+/* Expected output */
+.expected{background:#f6f8fa;border-left:3px solid var(--success-border);padding:10px 16px;margin:.5rem 0;font-size:.88rem;border-radius:0 4px 4px 0}
+.expected::before{content:"Resultado esperado: ";font-weight:600;color:var(--success-border)}
+
+/* Navigation */
+.nav-buttons{display:flex;justify-content:space-between;margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.nav-btn{padding:10px 20px;border:1px solid var(--border);border-radius:4px;font-size:.88rem;color:var(--text);background:#fff}
+.nav-btn:hover{background:var(--bg-page);text-decoration:none}
+.nav-btn-next{background:var(--link);color:#fff;border-color:var(--link)}
+.nav-btn-next:hover{background:#005b99;text-decoration:none}
+
+/* Duration badge */
+.duration{display:inline-block;background:var(--bg-page);border:1px solid var(--border);border-radius:12px;padding:2px 10px;font-size:.78rem;color:var(--text-secondary);margin-left:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title"><span>&#9656;</span> EKS Blue/Green Cluster Migration</div>
+</div>
+
+<nav class="sidebar">
+  <div class="sidebar-section">Visao Geral</div>
+  <a href="#intro" class="active">Introducao</a>
+  <a href="#arquitetura">Arquitetura</a>
+  <div class="sidebar-section">Demonstracao</div>
+  <a href="#fase1">1. Estado Atual (Blue)</a>
+  <a href="#fase2">2. Novo Cluster (Green)</a>
+  <a href="#fase3">3. Shift de Trafego</a>
+  <a href="#fase4">4. Rollback</a>
+  <a href="#fase5">5. Decommission</a>
+  <div class="sidebar-section">Bonus</div>
+  <a href="#fase6">6. Argo Rollouts</a>
+  <a href="#fase7">7. Kargo Pipeline</a>
+  <div class="sidebar-section">Encerramento</div>
+  <a href="#conclusao">Conclusao e Proximos Passos</a>
+</nav>
+
+<main class="content">
+
+<!-- ===== INTRO ===== -->
+<section id="intro">
+<h1>Introducao</h1>
+<p>Nesta demonstracao, vamos mostrar como migrar entre dois clusters Amazon EKS de versoes diferentes <strong>sem nenhum downtime</strong>, usando uma abordagem blue/green com GitOps (ArgoCD) e Route53 weighted routing.</p>
+
+<div class="callout callout-info"><strong>Cenario</strong>Imagine que voce tem um cluster EKS na versao 1.34 (duas versoes atras). O upgrade in-place de control plane e uma "one-way door" - nao existe rollback. E se fosse um EKS on Outposts Local Cluster v1, nem existiria o botao de upgrade pra v2. A solucao: nao vamos atualizar o cluster velho. Vamos <strong>substituir ele sem que o usuario perceba</strong>.</div>
+
+<h2>O que voce vai ver</h2>
+<ul>
+<li>Dois clusters (1.34 e 1.36) coexistindo na mesma VPC, sincronizando o mesmo repositorio Git</li>
+<li>Trafego migrando progressivamente (90/10 → 50/50 → 0/100) via pesos no DNS - controlados por commits no Git</li>
+<li>Rollback instantaneo (um commit reverte tudo em menos de 2 minutos)</li>
+<li>O cluster velho sendo destruido sem que nenhum request falhe</li>
+</ul>
+
+<h2>Componentes</h2>
+<table>
+<tr><th>Componente</th><th>Papel</th></tr>
+<tr><td>Amazon EKS (1.34 + 1.36)</td><td>Clusters blue e green</td></tr>
+<tr><td>ArgoCD (self-managed)</td><td>GitOps - sincroniza o mesmo repo em ambos os clusters</td></tr>
+<tr><td>Route53 (weighted records)</td><td>Distribui trafego entre os clusters por peso</td></tr>
+<tr><td>ExternalDNS</td><td>Reconcilia automaticamente os pesos do Git no Route53</td></tr>
+<tr><td>Karpenter</td><td>Provisiona nodes sob demanda em ambos clusters</td></tr>
+<tr><td>Gitea (HTTPS)</td><td>Repositorio GitOps auto-hospedado (long-lived)</td></tr>
+</table>
+</section>
+
+<!-- ===== ARQUITETURA ===== -->
+<section id="arquitetura">
+<h2>Arquitetura</h2>
+<p>A chave da solucao: o <strong>ambiente</strong> (VPC, DNS, repositorio Git) sobrevive; os <strong>clusters</strong> sao descartaveis.</p>
+
+<div class="callout callout-info"><strong>Mecanismo de shift</strong>O peso vive em um arquivo YAML no repositorio Git (<code>ingress-weight.yaml</code>). Editar o peso, commitar e dar push e TUDO que precisa ser feito. ArgoCD sincroniza, ExternalDNS atualiza o Route53. Auditavel no <code>git log</code>, reversivel com <code>git revert</code>.</div>
+
+<table>
+<tr><th>Camada</th><th>Conteudo</th><th>Ciclo de vida</th></tr>
+<tr><td><strong>core-infra</strong></td><td>VPC, hosted zone, Gitea</td><td>Permanente - sobrevive a toda migracao</td></tr>
+<tr><td><strong>eks-blue</strong></td><td>Cluster EKS 1.34 + ArgoCD</td><td>Descartavel - destruido no final</td></tr>
+<tr><td><strong>eks-green</strong></td><td>Cluster EKS 1.36 + ArgoCD</td><td>Vira o novo baseline</td></tr>
+</table>
+</section>
+
+<!-- ===== FASE 1 ===== -->
+<section id="fase1">
+<h1>1. Estado Atual (Blue) <span class="duration">5 min</span></h1>
+<p>Vamos explorar o ambiente atual - um cluster EKS 1.34 servindo 100% do trafego.</p>
+
+<h3>Verificar a versao do cluster</h3>
+<pre><code class="language-bash">kubectl --context eks-blue version | grep Server</code></pre>
+<div class="expected">Server Version: v1.34.x-eks-...</div>
+
+<h3>Nodes do cluster (MNG core + Karpenter workload)</h3>
+<pre><code class="language-bash">kubectl --context eks-blue get nodes -L role,karpenter.sh/nodepool</code></pre>
+<div class="expected">2 nodes "core" (MNG, t3.large) + 1-2 nodes Karpenter (spot, workload)</div>
+
+<h3>Aplicacao rodando</h3>
+<pre><code class="language-bash">kubectl --context eks-blue get pods -n demo -o wide</code></pre>
+<div class="expected">3 pods <code>demo-app</code> nos nodes Karpenter</div>
+
+<h3>Registro weighted no Route53</h3>
+<pre><code class="language-bash">aws route53 list-resource-record-sets --hosted-zone-id $ZONE_ID \
+  --query "ResourceRecordSets[?Name=='app.bluegreen.lab.'].[SetIdentifier,Weight]" \
+  --output table</code></pre>
+<div class="expected"><code>eks-blue | 100</code> (100% do trafego no blue)</div>
+
+<h3>Testar o app (de dentro da VPC)</h3>
+<pre><code class="language-bash">kubectl --context eks-blue run test --rm -i --restart=Never \
+  --image=python:3.13-slim -- python3 -c "
+import json, urllib.request
+r = json.load(urllib.request.urlopen('http://app.bluegreen.lab/'))
+print(json.dumps(r, indent=2))"</code></pre>
+<div class="expected"><code>{"cluster": "eks-blue", "message": "hello from the eks-blue cluster"}</code></div>
+
+<div class="callout callout-warn"><strong>Ponto-chave para o cliente</strong>Este cluster esta 2 versoes atras. O upgrade in-place de control plane EKS nao tem rollback. Em Outposts Local Clusters v1, nem existe botao de upgrade pra v2. Vamos resolver dos dois jeitos: nao atualizar, e sim SUBSTITUIR - sem que o usuario perceba.</div>
+</section>
+
+<!-- ===== FASE 2 ===== -->
+<section id="fase2">
+<h1>2. Novo Cluster (Green) <span class="duration">5 min</span></h1>
+<p>O cluster GREEN (EKS 1.36) ja esta provisionado, com o MESMO app sincronizado do MESMO repositorio Git. Vamos validar que esta funcional - sem receber nenhum trafego real.</p>
+
+<h3>Versao do green</h3>
+<pre><code class="language-bash">kubectl --context eks-green version | grep Server</code></pre>
+<div class="expected">Server Version: v1.36.x-eks-...</div>
+
+<h3>App rodando no green</h3>
+<pre><code class="language-bash">kubectl --context eks-green get pods -n demo -o wide</code></pre>
+<div class="expected">3 pods <code>demo-app</code> Running (mesmo deploy, mesmo Git - cluster diferente)</div>
+
+<h3>Diferenca entre os dois stacks (Terraform)</h3>
+<pre><code class="language-bash">diff terraform/eks-blue/main.tf terraform/eks-green/main.tf</code></pre>
+<div class="expected">~6 linhas diferentes: nome, versao, tags. Mesmo modulo. Clusters sao gado.</div>
+
+<h3>Validar que o green responde (sem tocar no DNS)</h3>
+<pre><code class="language-bash">kubectl --context eks-green run test --rm -i --restart=Never \
+  --image=python:3.13-slim -- python3 -c "
+import json, urllib.request
+r = json.load(urllib.request.urlopen('http://demo-app.demo.svc/'))
+print(json.dumps(r, indent=2))"</code></pre>
+<div class="expected"><code>{"cluster": "eks-green", "message": "hello from the eks-green cluster"}</code></div>
+
+<div class="callout callout-success"><strong>Ponto-chave</strong>O cluster novo esta 100% funcional - mesma aplicacao, mesmo repo Git, validado de ponta a ponta. E o usuario final nem sabe que ele existe. Weight 0. Zero risco ate aqui.</div>
+</section>
+
+<!-- ===== FASE 3 ===== -->
+<section id="fase3">
+<h1>3. Shift de Trafego <span class="duration">15 min</span></h1>
+<p>Agora vamos migrar o trafego progressivamente. O mecanismo: editar o peso no Git, commitar, e deixar o GitOps fazer o resto.</p>
+
+<div class="callout callout-info"><strong>Como funciona</strong>Nenhum comando toca o Route53 diretamente. O peso vive em <code>ingress-weight.yaml</code> no repositorio Git. ArgoCD sincroniza a annotation no Ingress, ExternalDNS reconcilia o Route53. Tudo auditavel via <code>git log</code>.</div>
+
+<h3>Iniciar o watch de trafego (manter em terminal separado)</h3>
+<pre><code class="language-bash">kubectl --context eks-blue run traffic-watch --rm -i --restart=Never \
+  --image=python:3.13-slim -- python3 -uc "
+import json, urllib.request, collections, time
+tally = collections.Counter()
+while True:
+    try:
+        r = json.load(urllib.request.urlopen('http://app.bluegreen.lab/', timeout=3))
+        c = r['cluster']; tally[c] += 1; total = sum(tally.values())
+        dist = ' | '.join(f'{k}: {v} ({100*v//total}%)' for k,v in sorted(tally.items()))
+        color = '\033[34m' if 'blue' in c else '\033[32m'
+        print(f'{color}{c:10s}\033[0m [{dist}]')
+    except: pass
+    time.sleep(1)"</code></pre>
+<div class="expected">100% das respostas vem do <code>eks-blue</code> (inicio)</div>
+
+<h3>Shift para 90/10 (canary)</h3>
+<pre><code class="language-bash"># Editar os pesos no Git
+git clone $GITEA_REPO /tmp/shift && cd /tmp/shift
+# Blue: 100 -> 90
+sed -i 's/aws-weight: "100"/aws-weight: "90"/' gitops/apps/demo-app/overlays/blue/ingress-weight.yaml
+# Green: 0 -> 10
+sed -i 's/aws-weight: "0"/aws-weight: "10"/' gitops/apps/demo-app/overlays/green/ingress-weight.yaml
+git add -A && git commit -m "shift: blue=90 green=10" && git push</code></pre>
+<div class="expected">Apos ~1-2 min, o watch mostra ~10% das respostas vindas do <code>eks-green</code></div>
+
+<h3>Shift para 50/50</h3>
+<pre><code class="language-bash">sed -i 's/aws-weight: "90"/aws-weight: "50"/' gitops/apps/demo-app/overlays/blue/ingress-weight.yaml
+sed -i 's/aws-weight: "10"/aws-weight: "50"/' gitops/apps/demo-app/overlays/green/ingress-weight.yaml
+git add -A && git commit -m "shift: blue=50 green=50" && git push</code></pre>
+<div class="expected">Watch mostra distribuicao ~50/50 entre blue e green</div>
+
+<h3>Shift para 0/100 (cutover completo)</h3>
+<pre><code class="language-bash">sed -i 's/aws-weight: "50"/aws-weight: "0"/' gitops/apps/demo-app/overlays/blue/ingress-weight.yaml
+sed -i 's/aws-weight: "50"/aws-weight: "100"/' gitops/apps/demo-app/overlays/green/ingress-weight.yaml
+git add -A && git commit -m "shift: blue=0 green=100 (cutover)" && git push</code></pre>
+<div class="expected">100% no green. O blue continua vivo como rede de seguranca.</div>
+
+<div class="callout callout-success"><strong>Ponto-chave</strong>Toda a migracao aconteceu via commits no Git. Sem comandos no Route53, sem scripts, sem automacao obscura. O git log E o audit trail. E o cluster velho segue de pe - pronto pra receber trafego de volta se algo der errado.</div>
+</section>
+
+<!-- ===== FASE 4 ===== -->
+<section id="fase4">
+<h1>4. Rollback <span class="duration">5 min</span></h1>
+<p>O argumento que fecha: se algo der errado, quanto tempo leva pra voltar?</p>
+
+<h3>Cronometrem.</h3>
+<pre><code class="language-bash"># Um commit reverte TUDO
+sed -i 's/aws-weight: "0"/aws-weight: "100"/' gitops/apps/demo-app/overlays/blue/ingress-weight.yaml
+sed -i 's/aws-weight: "100"/aws-weight: "0"/' gitops/apps/demo-app/overlays/green/ingress-weight.yaml
+git add -A && git commit -m "ROLLBACK: blue=100 green=0" && git push</code></pre>
+<div class="expected">Watch volta a mostrar 100% <code>eks-blue</code> em menos de 2 minutos</div>
+
+<div class="callout callout-warn"><strong>Compare com a alternativa</strong>
+<ul>
+<li><strong>Upgrade in-place:</strong> rollback = restaurar backup do etcd + downtime. Horas, nao minutos.</li>
+<li><strong>Outposts Local Clusters v1->v2:</strong> nao existe upgrade, e o "rollback" seria re-provisionar o v1. Dias.</li>
+<li><strong>Blue/green:</strong> um commit. O estado anterior CONTINUA EXISTINDO. Nao e um plano de rollback, e um fato.</li>
+</ul></div>
+</section>
+
+<!-- ===== FASE 5 ===== -->
+<section id="fase5">
+<h1>5. Decommission do Blue <span class="duration">5 min</span></h1>
+<p>Apos confirmar que o green esta estavel (soak period em producao), destruimos o blue.</p>
+
+<h3>Verificar que o green tem 100% do trafego</h3>
+<pre><code class="language-bash">aws route53 list-resource-record-sets --hosted-zone-id $ZONE_ID \
+  --query "ResourceRecordSets[?Name=='app.bluegreen.lab.'].[SetIdentifier,Weight]" --output table</code></pre>
+<div class="expected"><code>eks-green | 100</code></div>
+
+<h3>Destruir o cluster blue</h3>
+<pre><code class="language-bash">cd terraform/eks-blue && terraform destroy</code></pre>
+<div class="expected">Watch continua mostrando 100% green SEM NENHUM ERRO durante a destruicao</div>
+
+<div class="callout callout-success"><strong>Ponto-chave</strong>O cluster velho nao existe mais. O usuario nunca percebeu. No Outposts, este e o momento em que o hardware do Local Cluster v1 e liberado pro v2. E o green agora e o novo "blue" - na proxima versao, repetimos o mesmo playbook. Upgrade virou <strong>processo</strong>, nao projeto.</div>
+</section>
+
+<!-- ===== FASE 6 ===== -->
+<section id="fase6">
+<h1>6. Argo Rollouts (bonus) <span class="duration">10 min</span></h1>
+<p>Mesma filosofia, outra altitude: progressive delivery <strong>dentro</strong> do cluster (canary de pods).</p>
+
+<div class="callout callout-info"><strong>Duas altitudes</strong>
+<ul>
+<li><strong>Entre clusters:</strong> Route53 weighted (o que acabamos de ver) - migracao de versao do cluster</li>
+<li><strong>Dentro do cluster:</strong> Argo Rollouts canary - deploy de novas versoes do app no dia-a-dia</li>
+</ul>
+</div>
+
+<h3>Iniciar um canary (nova versao do app)</h3>
+<pre><code class="language-bash">kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:green -n demo</code></pre>
+<div class="expected">25% dos pods migram pra nova versao e o rollout PAUSA esperando aprovacao</div>
+
+<h3>Dashboard visual</h3>
+<pre><code class="language-bash">kubectl argo rollouts get rollout rollouts-demo -n demo --watch</code></pre>
+
+<h3>Aprovar o canary (promote)</h3>
+<pre><code class="language-bash">kubectl argo rollouts promote rollouts-demo -n demo</code></pre>
+<div class="expected">Rollout progride: 25% -> 50% -> 100% (com pausa de 30s entre etapas)</div>
+
+<div class="callout callout-success"><strong>Ponto-chave</strong>Com AnalysisTemplates conectados no Prometheus ou CloudWatch, o promote vira automatico baseado em metricas. E o mesmo racional da migracao de cluster aplicado a TODO deploy de sexta-feira.</div>
+</section>
+
+<!-- ===== FASE 7 ===== -->
+<section id="fase7">
+<h1>7. Kargo Pipeline (bonus) <span class="duration">15 min</span></h1>
+<p>Transforma o shift manual (commits no Git) num pipeline governado: Freight flui por estagios com gates de aprovacao + verificacao automatica.</p>
+
+<div class="callout callout-info"><strong>Kargo vs Argo Rollouts</strong>
+<table>
+<tr><th></th><th>Argo Rollouts</th><th>Kargo</th></tr>
+<tr><td>Escopo</td><td>Pods dentro de um cluster</td><td>Promocao entre estagios (clusters/ambientes) via Git</td></tr>
+<tr><td>Nesta demo</td><td>Canary de release no green</td><td>Pipeline: canary(10%) -> half(50%) -> cutover(100%)</td></tr>
+<tr><td>Relacao</td><td colspan="2">Complementares - Kargo usa AnalysisTemplates do Rollouts como verificacao</td></tr>
+</table>
+</div>
+
+<h3>Visualizar o pipeline</h3>
+<pre><code class="language-bash">kubectl -n bluegreen-migration get stages</code></pre>
+<div class="expected">3 Stages: <code>canary</code>, <code>half</code>, <code>cutover</code></div>
+
+<h3>Promover para o primeiro estagio (canary: 10%)</h3>
+<pre><code class="language-bash">kargo promote --project bluegreen-migration --freight $FREIGHT --stage canary</code></pre>
+<div class="expected">Kargo clona o repo, edita os pesos (blue=90, green=10), commita, da push. O ArgoCD sincroniza. Verificacao roda (probe HTTP 200). Status: Succeeded.</div>
+
+<h3>Avancar: half (50%) e cutover (100%)</h3>
+<pre><code class="language-bash">kargo promote --project bluegreen-migration --freight $FREIGHT --stage half
+# Aguardar verificacao...
+kargo promote --project bluegreen-migration --freight $FREIGHT --stage cutover</code></pre>
+<div class="expected">O Freight so avanca quando o estagio anterior e verificado com sucesso (gate automatico)</div>
+
+<div class="callout callout-success"><strong>Ponto-chave</strong>E o mesmo <code>git commit</code> de antes, mas agora com governanca: aprovacao humana ou automatica, verificacao entre estagios, audit trail no Kargo. Escala pra frota de clusters e ambientes.</div>
+</section>
+
+<!-- ===== CONCLUSAO ===== -->
+<section id="conclusao">
+<h1>Conclusao e Proximos Passos</h1>
+
+<h2>O que demonstramos</h2>
+<ul>
+<li>Migracao zero-downtime entre clusters EKS via blue/green + GitOps</li>
+<li>Rollback em menos de 2 minutos (um commit)</li>
+<li>O cluster velho e a rede de seguranca ate ser destruido</li>
+<li>Progressive delivery em duas altitudes (Rollouts + Kargo)</li>
+</ul>
+
+<h2>Como isso se aplica ao seu cenario</h2>
+<table>
+<tr><th>Se voce precisa...</th><th>Este pattern resolve porque...</th></tr>
+<tr><td>Upgrade de versao EKS sem risco</td><td>O cluster novo e validado a frio; rollback e instantaneo</td></tr>
+<tr><td>Migrar de Outposts Local Clusters v1 -> v2</td><td>Nao existe upgrade in-place; este E o playbook</td></tr>
+<tr><td>Mudar de MNG pra Karpenter / Auto Mode</td><td>O green nasce com a config nova; o blue morre com a velha</td></tr>
+<tr><td>Governanca de promocao entre ambientes</td><td>Kargo orquestra com gates + verificacao automatica</td></tr>
+</table>
+
+<h2>Proximos passos</h2>
+<ul>
+<li>Adaptar o front-door weighted pro seu edge (F5, HAProxy, Global Accelerator)</li>
+<li>Adicionar workloads stateful ao pipeline (Velero, replicacao de dados)</li>
+<li>Integrar AnalysisTemplates com suas metricas (Prometheus, CloudWatch)</li>
+<li>Escalar pra multiplos clusters/regioes com Kargo hub-and-spoke</li>
+</ul>
+</section>
+
+<div class="nav-buttons">
+  <a class="nav-btn" href="#intro">&larr; Inicio</a>
+  <a class="nav-btn nav-btn-next" href="#">Encerrar</a>
+</div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+// Copy button
+document.querySelectorAll('pre').forEach(function(pre){
+  var btn=document.createElement('button');
+  btn.className='copy-btn';btn.textContent='Copy';
+  btn.onclick=function(){
+    navigator.clipboard.writeText(pre.querySelector('code').textContent);
+    btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},1500);
+  };
+  pre.appendChild(btn);
+});
+// Sidebar active on scroll
+var sections=document.querySelectorAll('section[id]');
+var links=document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll',function(){
+  var top=window.scrollY+80;
+  sections.forEach(function(s){
+    if(s.offsetTop<=top&&s.offsetTop+s.offsetHeight>top){
+      links.forEach(function(l){l.classList.remove('active')});
+      var a=document.querySelector('.sidebar a[href="#'+s.id+'"]');
+      if(a)a.classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>
