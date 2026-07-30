@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Platform Engineering Challenges</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai-sublime.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--sidebar-w:280px;--topbar-h:56px;--font-body:'Amazon Ember','Helvetica Neue',Roboto,Arial,sans-serif;--aws-orange:#FF9900;--aws-squid:#232F3E;--text:#16191f;--text-secondary:#545b64;--border:#d5dbdb;--bg-page:#fafafa;--bg-content:#fff;--link:#0073bb;--info-bg:#f2f8fd;--info-border:#0073bb;--warn-bg:#fef8f0;--warn-border:#ff9900;--success-bg:#f2f8f0;--success-border:#1d8102}
+body{font-family:var(--font-body);color:var(--text);background:var(--bg-page);line-height:1.6;font-size:15px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);background:var(--aws-squid);display:flex;align-items:center;padding:0 24px;z-index:100}
+.topbar-title{color:#fff;font-size:1rem;font-weight:600}
+.topbar-title span{color:var(--aws-orange);margin-right:8px}
+.sidebar{position:fixed;top:var(--topbar-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--topbar-h));overflow-y:auto;background:#fff;border-right:1px solid var(--border);padding:20px 0}
+.sidebar-section{padding:8px 20px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary)}
+.sidebar a{display:block;padding:8px 20px 8px 28px;font-size:.88rem;color:var(--text);border-left:3px solid transparent;transition:all .15s}
+.sidebar a:hover{background:var(--info-bg);text-decoration:none}
+.sidebar a.active{border-left-color:var(--aws-orange);background:var(--info-bg);font-weight:600;color:var(--link)}
+.content{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:40px 48px;max-width:820px}
+.content h1{font-size:1.8rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+.content h2{font-size:1.3rem;margin:2rem 0 .8rem;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.content h3{font-size:1.05rem;margin:1.5rem 0 .5rem;color:var(--text)}
+.content p{margin:.6rem 0}
+.content ul,.content ol{padding-left:1.5rem;margin:.5rem 0}
+.content li{margin:4px 0}
+.content table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+.content th,.content td{padding:10px 14px;border:1px solid var(--border);text-align:left}
+.content th{background:var(--bg-page);font-weight:600}
+/* Collapsible callouts - collapsed by default to save screen space */
+details.callout{padding:0;margin:1rem 0;border-radius:4px;border-left:4px solid;font-size:.92rem;overflow:hidden}
+details.callout summary{padding:10px 18px;cursor:pointer;font-weight:600;list-style:none;user-select:none;color:var(--text-secondary)}
+details.callout summary::-webkit-details-marker{display:none}
+details.callout summary::before{content:"\25B8 ";color:var(--text-secondary)}
+details.callout[open] summary::before{content:"\25BE "}
+details.callout > div{padding:0 18px 14px 18px}
+.callout-info{background:var(--info-bg);border-color:var(--info-border)}
+.callout-warn{background:var(--warn-bg);border-color:var(--warn-border)}
+.callout-success{background:var(--success-bg);border-color:var(--success-border)}
+pre{position:relative;margin:1rem 0;border-radius:6px;background:#1e1e1e;overflow:hidden;border:1px solid #333;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+pre code{display:block;padding:18px 20px;overflow-x:auto;font-size:.85rem;font-family:'Cascadia Code','Fira Code','JetBrains Mono',Consolas,monospace;line-height:1.7;color:#e8d5a3;background:transparent}
+.copy-btn{position:absolute;top:8px;right:10px;padding:3px 10px;border:1px solid #444;border-radius:4px;background:#2a2a2a;font-size:.7rem;cursor:pointer;color:#888;z-index:10}
+.copy-btn:hover{background:#333;color:#e8d5a3}
+code{background:#2a2a2a;color:#e8d5a3;padding:2px 6px;border-radius:4px;font-size:.85em;font-family:'Cascadia Code','Fira Code',Consolas,monospace}
+.nav-buttons{display:flex;justify-content:space-between;margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.duration{display:inline-block;background:var(--bg-page);border:1px solid var(--border);border-radius:12px;padding:2px 10px;font-size:.78rem;color:var(--text-secondary);margin-left:8px;font-weight:400}
+
+/* solutions and hugo details render as our collapsible callouts */
+details{background:var(--info-bg);border-left:4px solid var(--info-border);border-radius:4px;margin:1rem 0;padding:0}
+details summary{padding:10px 18px;cursor:pointer;font-weight:600;color:var(--text-secondary)}
+details > *:not(summary){margin-left:18px;margin-right:18px}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-title"><span>&#9656;</span> Platform Engineering Challenges</div></div>
+<nav class="sidebar">
+<div class="sidebar-section">Visão Geral</div>
+<a href="#intro">Introdução</a>
+<div class="sidebar-section">kro + ACK</div>
+<a href="#desafio1">Networking Stack com kro + ACK</a>
+<a href="#desafio2">Pod com RDS usando kro + ACK</a>
+<div class="sidebar-section">Crossplane</div>
+<a href="#desafio3">VPC Composition com Crossplane</a>
+<div class="sidebar-section">ArgoCD EKS Capabilities</div>
+<a href="#desafio4">IAM Capability Role para ArgoCD</a>
+<a href="#desafio5">ApplicationSet com Cluster Generator Dinâmico</a>
+<a href="#desafio6">Sync Windows + Break-glass</a>
+<a href="#desafio7">Cross-account Deployments via Access Entries</a>
+<a href="#desafio8">Troubleshooting - Drift, Sync Failure e Health Degraded</a>
+<div class="sidebar-section">Desafio Final</div>
+<a href="#desafio9">Fleet Management com kro + ACK + ArgoCD</a>
+</nav>
+<main class="content">
+<section id="intro"><h1>Platform Engineering Challenges</h1>
+<p>9 desafios hands-on para aprender a criar abstrações de infraestrutura com <strong>kro</strong>, <strong>ACK</strong>, <strong>Crossplane</strong> e <strong>ArgoCD EKS Capabilities</strong>. Cada desafio tem uma solução oculta - tente resolver sozinho primeiro.</p>
+<table>
+<tr><th>Grupo</th><th>Desafios</th></tr>
+<tr><td>kro + ACK</td><td>1. Networking Stack | 2. Pod + RDS</td></tr>
+<tr><td>Crossplane</td><td>3. VPC Composition</td></tr>
+<tr><td>ArgoCD EKS Capabilities</td><td>4. IAM Role | 5. ApplicationSet | 6. Sync Windows | 7. Cross-account | 8. Troubleshooting</td></tr>
+<tr><td>Desafio Final</td><td>9. Fleet Management (hub-spoke)</td></tr>
+</table>
+</section>
+<section id="desafio1"><h1>Desafio 1: Networking Stack com kro + ACK</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Criar um ResourceGraphDefinition (RGD) do kro que provisiona uma stack completa de networking na AWS usando ACK (AWS Controllers for Kubernetes).</p><h2 id=contexto>Contexto</h2><p>O kro permite criar abstrações de alto nível que orquestram múltiplos recursos AWS. Neste desafio, você criará uma VPC com 3 subnets em diferentes AZs e um Security Group.</p><h2 id=requisitos>Requisitos</h2><ul><li>VPC com CIDR 192.168.0.0/16</li><li>3 Subnets públicas em AZs diferentes (us-west-2a, us-west-2b, us-west-2c)</li><li>Security Group associado à VPC</li><li>Status exportado com IDs dos recursos criados</li></ul><h2 id=desafio>Desafio</h2><p>Crie um RGD chamado <code>NetworkingStack</code> que aceite um parâmetro <code>name</code> e provisione toda a infraestrutura de rede. O status deve expor os IDs da VPC, subnets e security group.</p><p><strong>Dica:</strong> Use o ACK EC2 controller com recursos <code>VPC</code>, <code>Subnet</code> e <code>SecurityGroup</code>.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>kro.run/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>ResourceGraphDefinition</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>networkingstack.kro.run</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>schema</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1alpha1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>NetworkingStack</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>status</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>networkingInfo</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>vpcID</span>: <span style=color:#ae81ff>${vpc.status.vpcID}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>subnetAZA</span>: <span style=color:#ae81ff>${subnetAZA.status.subnetID}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>subnetAZB</span>: <span style=color:#ae81ff>${subnetAZB.status.subnetID}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>subnetAZC</span>: <span style=color:#ae81ff>${subnetAZC.status.subnetID}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>securityGroup</span>: <span style=color:#ae81ff>${securityGroup.status.id}</span>
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#f92672>resources</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>vpc</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>VPC</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>vpc-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>cidrBlocks</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#ae81ff>192.168.0.0</span><span style=color:#ae81ff>/16</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>enableDNSHostnames</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>enableDNSSupport</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>subnetAZA</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Subnet</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>subnet-a-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>availabilityZone</span>: <span style=color:#ae81ff>us-west-2a</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>cidrBlock</span>: <span style=color:#ae81ff>192.168.0.0</span><span style=color:#ae81ff>/18</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>vpcID</span>: <span style=color:#ae81ff>${vpc.status.vpcID}</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>subnetAZB</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Subnet</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>subnet-b-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>availabilityZone</span>: <span style=color:#ae81ff>us-west-2b</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>cidrBlock</span>: <span style=color:#ae81ff>192.168.64.0</span><span style=color:#ae81ff>/18</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>vpcID</span>: <span style=color:#ae81ff>${vpc.status.vpcID}</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>subnetAZC</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Subnet</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>subnet-c-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>availabilityZone</span>: <span style=color:#ae81ff>us-west-2c</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>cidrBlock</span>: <span style=color:#ae81ff>192.168.128.0</span><span style=color:#ae81ff>/18</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>vpcID</span>: <span style=color:#ae81ff>${vpc.status.vpcID}</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>securityGroup</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>SecurityGroup</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cluster-security-group-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>vpcID</span>: <span style=color:#ae81ff>${vpc.status.vpcID}</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>my-sg-${schema.spec.name}</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>description</span>: <span style=color:#ae81ff>Security group for networking stack</span>
+</span></span></code></pre></div><h3 id=como-usar>Como usar</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Aplicar o RGD</span>
+</span></span><span style=display:flex><span>kubectl apply -f networking-stack.yaml
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Criar uma instância</span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>&lt;&lt;EOF | kubectl apply -f -
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>apiVersion: v1alpha1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>kind: NetworkingStack
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>metadata:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  name: my-app
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>spec:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  name: my-app
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar status</span>
+</span></span><span style=display:flex><span>kubectl get networkingstack my-app -o yaml
+</span></span></code></pre></div><h3 id=conceitos-chave>Conceitos-chave</h3><ul><li><strong>ResourceGraphDefinition</strong>: Define uma nova API customizada</li><li><strong>Schema interpolation</strong>: <code>${vpc.status.vpcID}</code> referencia outputs de outros recursos</li><li><strong>Dependency management</strong>: kro gerencia automaticamente a ordem de criação</li><li><strong>Status propagation</strong>: Informações dos recursos AWS são expostas no status</li></ul></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Adicionar Internet Gateway e Route Tables</li><li>Parametrizar CIDRs e AZs</li><li>Adicionar NAT Gateways para subnets privadas</li></ul></article></section>
+<section id="desafio2"><h1>Desafio 2: Pod com RDS usando kro + ACK</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Criar um RGD que provisiona um Pod Kubernetes conectado a uma instância RDS PostgreSQL, com as credenciais injetadas automaticamente.</p><h2 id=contexto>Contexto</h2><p>Platform Engineers precisam abstrair a complexidade de conectar aplicações a bancos de dados gerenciados. Com kro + ACK, você pode criar uma API simples que provisiona tanto o banco quanto a aplicação.</p><h2 id=requisitos>Requisitos</h2><ul><li>RDS DBInstance PostgreSQL (db.t3.micro, 20GB)</li><li>Pod com imagem customizável</li><li>Variável de ambiente <code>POSTGRES_ENDPOINT</code> injetada automaticamente</li><li>Parâmetros: <code>applicationName</code>, <code>image</code>, <code>location</code></li></ul><h2 id=desafio>Desafio</h2><p>Crie um RGD chamado <code>DeploymentAndAWSPostgres</code> que aceite nome da aplicação e imagem Docker, e provisione o banco + pod com conexão configurada.</p><p><strong>Dica:</strong> Use interpolação <code>${dbinstance.status.endpoint.address}</code> para injetar o endpoint.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>kro.run/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>ResourceGraphDefinition</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>deploymentandawspostgres</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>schema</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1alpha1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>DeploymentAndAWSPostgres</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>applicationName</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>image</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>location</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>resources</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>dbinstance</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>rds.services.k8s.aws/v1alpha1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>DBInstance</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>${schema.spec.applicationName}-dbinstance</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>engine</span>: <span style=color:#ae81ff>postgres</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>dbInstanceIdentifier</span>: <span style=color:#ae81ff>${schema.spec.applicationName}-dbinstance</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>allocatedStorage</span>: <span style=color:#ae81ff>20</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>dbInstanceClass</span>: <span style=color:#ae81ff>db.t3.micro</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>masterUsername</span>: <span style=color:#ae81ff>admin</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>masterUserPassword</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>name</span>: <span style=color:#ae81ff>${schema.spec.applicationName}-db-secret</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>key</span>: <span style=color:#ae81ff>password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>pod</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Pod</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>${schema.spec.applicationName}-pod</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>containers</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>app</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>image</span>: <span style=color:#ae81ff>${schema.spec.image}</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>env</span>:
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>POSTGRES_ENDPOINT</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>: <span style=color:#ae81ff>${dbinstance.status.endpoint.address}</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>POSTGRES_PORT</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>: <span style=color:#ae81ff>${dbinstance.status.endpoint.port}</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>POSTGRES_USER</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>: <span style=color:#ae81ff>admin</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>POSTGRES_PASSWORD</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>valueFrom</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>secretKeyRef</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>name</span>: <span style=color:#ae81ff>${schema.spec.applicationName}-db-secret</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>key</span>: <span style=color:#ae81ff>password</span>
+</span></span></code></pre></div><h3 id=pré-requisitos>Pré-requisitos</h3><p>Criar secret com senha do banco:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl create secret generic my-app-db-secret <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --from-literal<span style=color:#f92672>=</span>password<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;SuaSenhaSegura123!&#39;</span>
+</span></span></code></pre></div><h3 id=como-usar>Como usar</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Aplicar o RGD</span>
+</span></span><span style=display:flex><span>kubectl apply -f deployment-postgres.yaml
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Criar aplicação com banco</span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>&lt;&lt;EOF | kubectl apply -f -
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>apiVersion: v1alpha1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>kind: DeploymentAndAWSPostgres
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>metadata:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  name: my-app
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>spec:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  applicationName: my-app
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  image: postgres:15-alpine
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  location: us-east-1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar recursos criados</span>
+</span></span><span style=display:flex><span>kubectl get dbinstance
+</span></span><span style=display:flex><span>kubectl get pod my-app-pod
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Ver logs do pod</span>
+</span></span><span style=display:flex><span>kubectl logs my-app-pod
+</span></span></code></pre></div><h3 id=conceitos-chave>Conceitos-chave</h3><ul><li><strong>Cross-resource dependencies</strong>: Pod aguarda RDS estar pronto</li><li><strong>Status interpolation</strong>: Endpoint do RDS injetado automaticamente</li><li><strong>Secret management</strong>: Credenciais gerenciadas via Kubernetes Secrets</li><li><strong>Declarative infrastructure</strong>: Tudo definido em YAML</li></ul><h3 id=melhorias-possíveis>Melhorias possíveis</h3><ul><li>Usar Deployment ao invés de Pod</li><li>Adicionar readiness probe que testa conexão com banco</li><li>Criar DBSubnetGroup para controlar placement</li><li>Adicionar backup retention e maintenance window</li></ul></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Adicionar connection pooling (RDS Proxy)</li><li>Implementar read replicas</li><li>Configurar automated backups</li></ul></article></section>
+<section id="desafio3"><h1>Desafio 3: VPC Composition com Crossplane</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Criar uma Composition do Crossplane que provisiona uma VPC completa com subnets públicas e privadas em múltiplas AZs.</p><h2 id=contexto>Contexto</h2><p>Crossplane Compositions permitem criar abstrações reutilizáveis de infraestrutura. Diferente do kro (focado em Kubernetes-native), Crossplane é mais voltado para infraestrutura cloud-agnostic.</p><h2 id=requisitos>Requisitos</h2><ul><li>VPC com CIDR configurável</li><li>3 subnets públicas (mapPublicIpOnLaunch: true)</li><li>3 subnets privadas</li><li>Tags Kubernetes para ELB (<code>kubernetes.io/role/elb</code>)</li><li>PatchSets para parâmetros comuns (region, providerConfig)</li></ul><h2 id=desafio>Desafio</h2><p>Crie uma Composition que aceite parâmetros de VPC e subnets, e provisione toda a infraestrutura usando o Crossplane AWS Provider.</p><p><strong>Dica:</strong> Use <code>FromCompositeFieldPath</code> patches e <code>patchSets</code> para evitar repetição.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução-resumida>Solução (resumida)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>apiextensions.crossplane.io/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Composition</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>xvpcsubnets.network.awsblueprints.io</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>awsblueprints.io/provider</span>: <span style=color:#ae81ff>aws</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>crossplane.io/xrd</span>: <span style=color:#ae81ff>xvpcsubnets.network.awsblueprints.io</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>writeConnectionSecretsToNamespace</span>: <span style=color:#ae81ff>crossplane-system</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>compositeTypeRef</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>network.awsblueprints.io/v1alpha1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>XVpcSubnet</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>patchSets</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>common-parameters</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patches</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.resourceConfig.providerConfigName</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.providerConfigRef.name</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.resourceConfig.region</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.region</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>resources</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>vpc</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>base</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.aws.crossplane.io/v1beta1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>VPC</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>forProvider</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>enableDnsSupport</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>enableDnsHostNames</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>tags</span>:
+</span></span><span style=display:flex><span>              - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>Name</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patches</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>PatchSet</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>patchSetName</span>: <span style=color:#ae81ff>common-parameters</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.vpc-cidrBlock</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.cidrBlock</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.vpc-Name</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.tags[0].value</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>public-subnet1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>base</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.aws.crossplane.io/v1beta1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Subnet</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>type</span>: <span style=color:#ae81ff>subnet</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>visibility</span>: <span style=color:#ae81ff>public</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>forProvider</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>mapPublicIpOnLaunch</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>vpcIdSelector</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>matchControllerRef</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>tags</span>:
+</span></span><span style=display:flex><span>              - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>Name</span>
+</span></span><span style=display:flex><span>              - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>kubernetes.io/role/elb</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;1&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patches</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>PatchSet</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>patchSetName</span>: <span style=color:#ae81ff>common-parameters</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.vpc-Name</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.tags[0].value</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>transforms</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>string</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>fmt</span>: <span style=color:#e6db74>&#39;public-subnet1-%s&#39;</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.publicSubnet1-cidrBlock</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.cidrBlock</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.publicSubnet1-availabilityZone</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.availabilityZone</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>private-subnet1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>base</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>ec2.aws.crossplane.io/v1beta1</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Subnet</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>type</span>: <span style=color:#ae81ff>subnet</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>visibility</span>: <span style=color:#ae81ff>private</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>forProvider</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>mapPublicIpOnLaunch</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>vpcIdSelector</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>matchControllerRef</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>tags</span>:
+</span></span><span style=display:flex><span>              - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>Name</span>
+</span></span><span style=display:flex><span>              - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>kubernetes.io/role/internal-elb</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;1&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patches</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>PatchSet</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>patchSetName</span>: <span style=color:#ae81ff>common-parameters</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.vpc-Name</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.tags[0].value</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>transforms</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>string</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>fmt</span>: <span style=color:#e6db74>&#39;private-subnet1-%s&#39;</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>type</span>: <span style=color:#ae81ff>FromCompositeFieldPath</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>fromFieldPath</span>: <span style=color:#ae81ff>spec.parameters.privateSubnet1-cidrBlock</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>toFieldPath</span>: <span style=color:#ae81ff>spec.forProvider.cidrBlock</span>
+</span></span></code></pre></div><h3 id=compositeresourcedefinition-xrd>CompositeResourceDefinition (XRD)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>apiextensions.crossplane.io/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>CompositeResourceDefinition</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>xvpcsubnets.network.awsblueprints.io</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>group</span>: <span style=color:#ae81ff>network.awsblueprints.io</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>names</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>XVpcSubnet</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>plural</span>: <span style=color:#ae81ff>xvpcsubnets</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>versions</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>v1alpha1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>served</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>referenceable</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>schema</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>openAPIV3Schema</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>type</span>: <span style=color:#ae81ff>object</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>properties</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>type</span>: <span style=color:#ae81ff>object</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>properties</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>resourceConfig</span>:
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>object</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>properties</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>providerConfigName</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>region</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>parameters</span>:
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>object</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>properties</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>vpc-Name</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>vpc-cidrBlock</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>publicSubnet1-cidrBlock</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>publicSubnet1-availabilityZone</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>string</span>
+</span></span></code></pre></div><h3 id=como-usar>Como usar</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Aplicar XRD e Composition</span>
+</span></span><span style=display:flex><span>kubectl apply -f xrd.yaml
+</span></span><span style=display:flex><span>kubectl apply -f composition.yaml
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Criar VPC</span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>&lt;&lt;EOF | kubectl apply -f -
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>apiVersion: network.awsblueprints.io/v1alpha1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>kind: XVpcSubnet
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>metadata:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  name: my-vpc
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>spec:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  resourceConfig:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    providerConfigName: default
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    region: us-east-1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  parameters:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    vpc-Name: my-app-vpc
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    vpc-cidrBlock: 10.0.0.0/16
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    publicSubnet1-cidrBlock: 10.0.1.0/24
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    publicSubnet1-availabilityZone: us-east-1a
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    privateSubnet1-cidrBlock: 10.0.101.0/24
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    privateSubnet1-availabilityZone: us-east-1a
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>EOF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar recursos</span>
+</span></span><span style=display:flex><span>kubectl get xvpcsubnet
+</span></span><span style=display:flex><span>kubectl get vpc
+</span></span><span style=display:flex><span>kubectl get subnet
+</span></span></code></pre></div><h3 id=diferenças-crossplane-vs-kro>Diferenças: Crossplane vs kro</h3><table><thead><tr><th>Aspecto</th><th>Crossplane</th><th>kro</th></tr></thead><tbody><tr><td>Foco</td><td>Infraestrutura cloud-agnostic</td><td>Kubernetes-native resources</td></tr><tr><td>Complexidade</td><td>Mais verboso (XRD + Composition)</td><td>Mais simples (RGD único)</td></tr><tr><td>Maturidade</td><td>Produção-ready, CNCF</td><td>Mais novo, SIG Cloud Provider</td></tr><tr><td>Use case</td><td>Multi-cloud, GitOps avançado</td><td>Abstrações rápidas K8s+Cloud</td></tr></tbody></table></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Adicionar Internet Gateway e NAT Gateway</li><li>Implementar Route Tables</li><li>Criar Composition para EKS cluster</li><li>Explorar Crossplane Functions para lógica customizada</li></ul></article></section>
+<section id="desafio4"><h1>Desafio 4: IAM Capability Role para ArgoCD</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Criar a IAM Role necessária para habilitar o ArgoCD como EKS Capability, seguindo o princípio de least-privilege.</p><h2 id=contexto>Contexto</h2><p>O ArgoCD EKS Capability não roda nos seus worker nodes - ele roda no control plane gerenciado pela AWS. Para isso, a AWS precisa assumir uma role na sua conta. Essa role é chamada de <strong>IAM Capability Role</strong> e é o ponto de entrada de segurança de toda a integração.</p><p>Diferente de uma role comum, ela usa um service principal específico: <code>capabilities.eks.amazonaws.com</code>. Sem a trust policy correta, o ArgoCD simplesmente não consegue ser habilitado no cluster.</p><p>Além da trust policy, as permissões da role determinam o que o ArgoCD pode acessar: repositórios no CodeCommit, segredos no Secrets Manager, charts no ECR. O princípio é conceder apenas o que for necessário para o seu caso de uso.</p><h2 id=requisitos>Requisitos</h2><ul><li>Trust policy com o service principal <code>capabilities.eks.amazonaws.com</code></li><li>Permissão para leitura de um repositório específico no CodeCommit (não wildcard)</li><li>Permissão para leitura de segredos no Secrets Manager (usar a managed policy correta)</li><li>Permissão para pull de charts no ECR</li></ul><h2 id=desafio>Desafio</h2><p>Crie a IAM Role <code>ArgoCD-Capability-Role</code> com as permissões mínimas descritas acima. Em seguida, habilite o ArgoCD Capability no seu cluster EKS usando essa role.</p><p><strong>Dica:</strong> A trust policy precisa do <code>sts:AssumeRole</code> para o service principal correto. Consulte a <a href=https://docs.aws.amazon.com/eks/latest/userguide/capabilities-security.html>documentação de segurança das EKS Capabilities</a> para o formato exato.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><p><strong>1. Trust Policy</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;Version&#34;</span>: <span style=color:#e6db74>&#34;2012-10-17&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;Statement&#34;</span>: [
+</span></span><span style=display:flex><span>    {
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;Effect&#34;</span>: <span style=color:#e6db74>&#34;Allow&#34;</span>,
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;Principal&#34;</span>: {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&#34;Service&#34;</span>: <span style=color:#e6db74>&#34;capabilities.eks.amazonaws.com&#34;</span>
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;Action&#34;</span>: <span style=color:#e6db74>&#34;sts:AssumeRole&#34;</span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  ]
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p><strong>2. Criar a role</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws iam create-role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-name ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --assume-role-policy-document file://trust-policy.json
+</span></span></code></pre></div><p><strong>3. Permissão CodeCommit (repositório específico)</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws iam put-role-policy <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-name ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --policy-name CodeCommitAccess <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --policy-document <span style=color:#e6db74>&#39;{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;Version&#34;: &#34;2012-10-17&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;Statement&#34;: [{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;Effect&#34;: &#34;Allow&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;Action&#34;: &#34;codecommit:GitPull&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;Resource&#34;: &#34;arn:aws:codecommit:us-east-1:ACCOUNT_ID:meu-repo&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    }]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }&#39;</span>
+</span></span></code></pre></div><p><strong>4. Permissão Secrets Manager</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws iam attach-role-policy <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-name ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --policy-arn arn:aws:iam::aws:policy/AWSSecretsManagerClientReadOnlyAccess
+</span></span></code></pre></div><p><strong>5. Permissão ECR</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws iam attach-role-policy <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-name ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly
+</span></span></code></pre></div><p><strong>6. Habilitar ArgoCD Capability no cluster</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws eks create-addon <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name meu-cluster <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --addon-name argocd <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --service-account-role-arn arn:aws:iam::ACCOUNT_ID:role/ArgoCD-Capability-Role
+</span></span></code></pre></div><h3 id=o-que-acontece-por-baixo>O que acontece por baixo</h3><p>Quando você cria a Capability, a AWS automaticamente:</p><ul><li>Instala os CRDs do ArgoCD no cluster (<code>Application</code>, <code>ApplicationSet</code>, <code>AppProject</code>)</li><li>Cria um Access Entry para a role com as policies <code>AmazonEKSArgoCDClusterPolicy</code> e <code>AmazonEKSArgoCDPolicy</code></li><li>Disponibiliza a UI do ArgoCD via EKS Console em <code>Clusters > Capabilities > Argo CD</code></li></ul><h3 id=validação>Validação</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Verificar status da capability</span>
+</span></span><span style=display:flex><span>aws eks describe-addon --cluster-name meu-cluster --addon-name argocd <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --query <span style=color:#e6db74>&#39;addon.status&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar CRDs instalados</span>
+</span></span><span style=display:flex><span>kubectl get crd | grep argoproj
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar access entry criado automaticamente</span>
+</span></span><span style=display:flex><span>aws eks list-access-entries --cluster-name meu-cluster
+</span></span></code></pre></div></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Avaliar se Secrets Manager é necessário ou se Kubernetes Secrets são suficientes para o seu caso de uso</li><li>Revisar as policies automáticas criadas pelo EKS no Access Entry e ajustar se necessário</li><li>Explorar o desafio de Cross-account para entender como a Capability Role é usada em deployments multi-conta</li></ul></article></section>
+<section id="desafio5"><h1>Desafio 5: ApplicationSet com Cluster Generator Dinâmico</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Criar um ApplicationSet que descobre clusters automaticamente e faz deploy de uma aplicação em todos eles, sem precisar editar o manifesto quando novos clusters são adicionados.</p><h2 id=contexto>Contexto</h2><p>O workshop base usa o <strong>List Generator</strong> no ApplicationSet - você define uma lista estática de clusters no YAML. Funciona, mas não escala: cada novo cluster exige uma edição manual.</p><p>O <strong>Cluster Generator</strong> resolve isso. Ele consulta os clusters registrados no ArgoCD e gera Applications automaticamente para cada um. Você pode filtrar por labels para controlar quais clusters recebem qual aplicação.</p><p>No EKS Capabilities, os clusters são registrados via Kubernetes Secrets com a label <code>argocd.argoproj.io/secret-type: cluster</code>. O Cluster Generator lê esses secrets e usa os metadados como parâmetros no template.</p><h2 id=requisitos>Requisitos</h2><ul><li>Dois clusters registrados no ArgoCD com labels diferentes: <code>env: staging</code> e <code>env: prod</code></li><li>ApplicationSet usando Cluster Generator que filtra por label <code>env: staging</code></li><li>Deploy da aplicação <code>guestbook</code> apenas nos clusters de staging</li><li>Quando um novo cluster staging for registrado, o deploy deve acontecer automaticamente</li></ul><h2 id=desafio>Desafio</h2><p>Crie os secrets de registro dos dois clusters e o ApplicationSet com Cluster Generator filtrado por label. Valide que apenas o cluster staging recebe a aplicação.</p><p><strong>Dica:</strong> O Cluster Generator usa <code>spec.generators[].clusters.selector.matchLabels</code> para filtrar. As labels do secret do cluster ficam disponíveis como <code>{{.metadata.labels.env}}</code> no template.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><p><strong>1. Registrar cluster staging</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Secret</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cluster-staging</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>argocd.argoproj.io/secret-type</span>: <span style=color:#ae81ff>cluster</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>env</span>: <span style=color:#ae81ff>staging</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>type</span>: <span style=color:#ae81ff>Opaque</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>stringData</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>staging</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:ACCOUNT_ID:cluster/meu-cluster-staging</span>
+</span></span></code></pre></div><p><strong>2. Registrar cluster prod</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Secret</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cluster-prod</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>argocd.argoproj.io/secret-type</span>: <span style=color:#ae81ff>cluster</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>env</span>: <span style=color:#ae81ff>prod</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>type</span>: <span style=color:#ae81ff>Opaque</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>stringData</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>prod</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:ACCOUNT_ID:cluster/meu-cluster-prod</span>
+</span></span></code></pre></div><p><strong>3. ApplicationSet com Cluster Generator</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>argoproj.io/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>ApplicationSet</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>guestbook-staging</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>goTemplate</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>goTemplateOptions</span>: [<span style=color:#e6db74>&#34;missingkey=error&#34;</span>]
+</span></span><span style=display:flex><span>  <span style=color:#f92672>generators</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>clusters</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>selector</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>matchLabels</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>env</span>: <span style=color:#ae81ff>staging</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#39;{{.name}}-guestbook&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>project</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>source</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>repoURL</span>: <span style=color:#ae81ff>https://github.com/argoproj/argocd-example-apps.git</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>path</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>targetRevision</span>: <span style=color:#ae81ff>HEAD</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#39;{{.name}}&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>syncPolicy</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>automated</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>prune</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>selfHeal</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>syncOptions</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>CreateNamespace=true</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl apply -f cluster-staging.yaml
+</span></span><span style=display:flex><span>kubectl apply -f cluster-prod.yaml
+</span></span><span style=display:flex><span>kubectl apply -f applicationset-staging.yaml
+</span></span></code></pre></div><p><strong>4. Validar</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Deve mostrar apenas a application do cluster staging</span>
+</span></span><span style=display:flex><span>kubectl get applications -n argocd
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Adicionar um novo cluster staging e verificar deploy automático</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Basta criar outro secret com label env: staging</span>
+</span></span></code></pre></div><h3 id=por-que-isso-importa>Por que isso importa</h3><p>Com List Generator, adicionar 10 clusters = editar o YAML 10 vezes. Com Cluster Generator, você registra o cluster com a label correta e o deploy acontece automaticamente. Em ambientes com dezenas de clusters (multi-region, multi-account), essa diferença é crítica.</p></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Usar Matrix Generator para combinar clusters com ambientes (dev/staging/prod)</li><li>Adicionar Git Generator para descobrir aplicações automaticamente por diretório no repositório</li><li>Implementar ApplicationSet com Pull Request Generator para preview environments</li></ul></article></section>
+<section id="desafio6"><h1>Desafio 6: Sync Windows + Break-glass</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Configurar janelas de sincronização em um AppProject para bloquear deploys em produção durante o horário comercial, e executar um procedimento de break-glass para forçar um deploy de emergência fora da janela.</p><h2 id=contexto>Contexto</h2><p>Em ambientes de produção, deploys não controlados durante o horário de pico são um risco operacional. O ArgoCD resolve isso com <strong>Sync Windows</strong> - regras de tempo configuradas no AppProject que controlam quando aplicações podem ou não ser sincronizadas.</p><p>Existem dois tipos:</p><ul><li><code>allow</code> - sync só acontece dentro dessa janela</li><li><code>deny</code> - sync é bloqueado durante essa janela</li></ul><p>No self-managed ArgoCD, você poderia ajustar isso via <code>argocd-cm</code> ConfigMap. No <strong>EKS Capabilities, esse ConfigMap não é acessível</strong> - a única forma suportada é via <code>spec.syncWindows</code> no AppProject. Isso é um diferencial importante de operação.</p><p>O <strong>break-glass</strong> é o procedimento de emergência: forçar um sync mesmo com a janela bloqueada. No ArgoCD, isso é feito com a flag <code>--bypass-sync-window</code> no CLI, disponível apenas para usuários com role <code>ADMIN</code>.</p><blockquote><p><strong>Limitação importante:</strong> O sync timeout no EKS Capabilities é fixo em <strong>120 segundos</strong> e não é configurável. Para workloads que demoram mais de 2 minutos para subir (ex: jobs de migração de banco), planeje estratégias alternativas como health checks customizados ou sync manual em etapas. Referência: <a href=https://docs.aws.amazon.com/eks/latest/userguide/argocd-comparison.html>Comparing EKS Capability for Argo CD to self-managed Argo CD</a></p></blockquote><h2 id=requisitos>Requisitos</h2><ul><li>AppProject <code>production</code> com deny window de segunda a sexta, das 8h às 18h</li><li>Aplicação associada ao projeto <code>production</code> com sync automático habilitado</li><li>Simular um commit durante a janela bloqueada e observar o sync bloqueado na UI</li><li>Executar break-glass via CLI para forçar o deploy</li></ul><h2 id=desafio>Desafio</h2><p>Configure o AppProject com a Sync Window e valide o comportamento de bloqueio. Em seguida, use o procedimento de break-glass para forçar o sync.</p><p><strong>Dica:</strong> O cron da Sync Window usa o formato padrão. <code>0 8 * * 1-5</code> significa &ldquo;às 8h de segunda a sexta&rdquo;. A duração é em horas: <code>10h</code> cobre das 8h às 18h.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><p><strong>1. AppProject com Sync Window</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>argoproj.io/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>AppProject</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>production</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>description</span>: <span style=color:#e6db74>&#34;Projeto de produção com janela de deploy controlada&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sourceRepos</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#e6db74>&#39;*&#39;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>destinations</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>namespace</span>: <span style=color:#e6db74>&#39;*&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server</span>: <span style=color:#e6db74>&#39;*&#39;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sourceNamespaces</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>clusterResourceWhitelist</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>group</span>: <span style=color:#e6db74>&#39;*&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#e6db74>&#39;*&#39;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>syncWindows</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>deny</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>schedule</span>: <span style=color:#e6db74>&#34;0 8 * * 1-5&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>duration</span>: <span style=color:#ae81ff>10h</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>applications</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>namespaces</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>clusters</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>manualSync</span>: <span style=color:#66d9ef>false</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl apply -f production-project.yaml
+</span></span></code></pre></div><p><strong>2. Aplicação associada ao projeto production</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>argoproj.io/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Application</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>minha-app-prod</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>project</span>: <span style=color:#ae81ff>production</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>source</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>repoURL</span>: <span style=color:#ae81ff>https://github.com/argoproj/argocd-example-apps.git</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>path</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>targetRevision</span>: <span style=color:#ae81ff>HEAD</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>in-cluster</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>syncPolicy</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>automated</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>prune</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>selfHeal</span>: <span style=color:#66d9ef>true</span>
+</span></span></code></pre></div><p><strong>3. Validar bloqueio</strong></p><p>Durante a janela de deny, qualquer commit no repositório não vai disparar sync automático. Na UI do ArgoCD, a aplicação aparece com status <code>OutOfSync</code> mas sem tentar sincronizar. Você verá a mensagem de sync window ativa.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Verificar sync windows ativas</span>
+</span></span><span style=display:flex><span>argocd proj windows list production
+</span></span></code></pre></div><p><strong>4. Break-glass - forçar sync fora da janela</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Requer role ADMIN no ArgoCD</span>
+</span></span><span style=display:flex><span>argocd app sync minha-app-prod --bypass-sync-window
+</span></span></code></pre></div><p>Na UI: <code>Application > Sync > selecionar "Bypass Sync Window"</code> (disponível apenas para admins).</p><p><strong>5. Sync Window com janela de manutenção (allow)</strong></p><p>Para permitir deploys apenas em janelas específicas, use <code>kind: allow</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>syncWindows</span>:
+</span></span><span style=display:flex><span>- <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>allow</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>schedule</span>: <span style=color:#e6db74>&#34;0 22 * * 5&#34;</span>   <span style=color:#75715e># sexta às 22h</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>duration</span>: <span style=color:#ae81ff>6h             </span> <span style=color:#75715e># até sábado às 4h</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>applications</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span></code></pre></div><h3 id=comportamento-com-manualsync-true>Comportamento com manualSync: true</h3><p>Se <code>manualSync: true</code> na Sync Window, syncs manuais ainda são permitidos durante o bloqueio - apenas o sync automático é bloqueado. Útil para equipes que precisam de flexibilidade operacional sem abrir o break-glass completo.</p></div></details><hr><h2 id=extra-webhook-para-sync-imediato>Extra: Webhook para Sync Imediato</h2><p>Por padrão, o ArgoCD EKS Capability faz polling dos repositórios a cada <strong>6 minutos</strong> - diferente do self-managed que é 3 minutos. Para ambientes onde velocidade de feedback importa, configure webhooks para sync em segundos.</p><p>O endpoint do webhook no EKS Capabilities segue o padrão:</p><pre tabindex=0><code>https://&lt;seu-argocd-server&gt;.eks-capabilities.&lt;region&gt;.amazonaws.com/api/webhook
+</code></pre><p><strong>Dica:</strong> A URL completa do seu ArgoCD está disponível no EKS Console em Clusters → Capabilities → Argo CD, ou via CLI:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws eks describe-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name meu-cluster <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --capability-name meu-cluster-argocd <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --query <span style=color:#e6db74>&#39;capability.configuration.argoCd.serverUrl&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --output text
+</span></span></code></pre></div><details><summary>💡 Ver solução</summary><div style=margin-top:10px><p><strong>GitHub:</strong></p><ol><li>No repositório → Settings → Webhooks → Add webhook</li><li>Payload URL: <code>https://&lt;argocd-server>/api/webhook</code></li><li>Content type: <code>application/json</code></li><li>Events: &ldquo;Just the push event&rdquo;</li></ol><p><strong>GitLab:</strong></p><ol><li>No projeto → Settings → Webhooks</li><li>URL: <code>https://&lt;argocd-server>/api/webhook</code></li><li>Trigger: &ldquo;Push events&rdquo;</li></ol><p><strong>CodeCommit via EventBridge:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;source&#34;</span>: [<span style=color:#e6db74>&#34;aws.codecommit&#34;</span>],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;detail-type&#34;</span>: [<span style=color:#e6db74>&#34;CodeCommit Repository State Change&#34;</span>],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;detail&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;event&#34;</span>: [<span style=color:#e6db74>&#34;referenceUpdated&#34;</span>],
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;repositoryName&#34;</span>: [<span style=color:#e6db74>&#34;meu-repo&#34;</span>]
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Target: API Destination apontando para <code>https://&lt;argocd-server>/api/webhook</code> com método POST.</p><p><strong>Validar:</strong></p><p>Faça um commit e observe na UI do ArgoCD - a aplicação deve entrar em sync em segundos, não em até 6 minutos.</p><blockquote><p>Webhooks complementam o polling - não o substituem. O ArgoCD continua fazendo polling como fallback caso uma notificação seja perdida.</p></blockquote><p>Referência: <a href=https://docs.aws.amazon.com/eks/latest/userguide/argocd-considerations.html#_webhook_configuration_for_faster_sync>Webhook configuration for faster sync</a></p></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Configurar Sync Windows por namespace para granularidade maior</li><li>Integrar com EventBridge para notificar o time quando break-glass é acionado</li><li>Combinar com AppProject RBAC para restringir quem pode fazer break-glass</li></ul></article></section>
+<section id="desafio7"><h1>Desafio 7: Cross-account Deployments via Access Entries</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Configurar o ArgoCD EKS Capability em uma conta AWS (hub) para fazer deploy de aplicações em um cluster EKS em outra conta AWS (spoke), sem usar IRSA nem role chaining.</p><h2 id=contexto>Contexto</h2><p>Em arquiteturas multi-conta, o padrão tradicional para o ArgoCD self-managed acessar clusters em outras contas envolve IRSA, trust policies entre contas, e role assumption chains - configuração complexa e propensa a erros.</p><p>O <strong>EKS Capabilities simplifica radicalmente isso</strong>. Como o ArgoCD roda no control plane da AWS, o acesso cross-account é feito diretamente via <strong>EKS Access Entries</strong>: você adiciona o ARN da IAM Capability Role da conta hub como principal no cluster da conta spoke. Sem VPC peering, sem Transit Gateway, sem role chaining.</p><p>O ArgoCD gerencia a conectividade automaticamente - inclusive para clusters com API endpoint privado.</p><h2 id=requisitos>Requisitos</h2><ul><li>Conta A (hub): cluster EKS com ArgoCD Capability habilitado</li><li>Conta B (spoke): cluster EKS alvo do deploy</li><li>Access Entry no cluster spoke autorizando a Capability Role da conta hub</li><li>Cluster spoke registrado no ArgoCD via Secret com o ARN do cluster</li><li>Deploy de uma aplicação no cluster spoke validado via UI</li></ul><h2 id=desafio>Desafio</h2><p>Configure o Access Entry na conta spoke e registre o cluster no ArgoCD da conta hub. Faça o deploy de uma aplicação e valide que ela está rodando no cluster da conta B.</p><p><strong>Dica:</strong> O Access Entry usa o ARN da Capability Role da conta hub como principal. Para produção, evite <code>AmazonEKSClusterAdminPolicy</code> - crie uma policy customizada com apenas as permissões necessárias para o ArgoCD deployar nos namespaces alvo.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><h3 id=solução>Solução</h3><p><strong>1. Obter o ARN da Capability Role (conta hub)</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Na conta hub</span>
+</span></span><span style=display:flex><span>aws iam get-role --role-name ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --query <span style=color:#e6db74>&#39;Role.Arn&#39;</span> --output text
+</span></span><span style=display:flex><span><span style=color:#75715e># Resultado: arn:aws:iam::HUB_ACCOUNT_ID:role/ArgoCD-Capability-Role</span>
+</span></span></code></pre></div><p><strong>2. Criar Access Entry no cluster spoke (conta B)</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Na conta spoke (B)</span>
+</span></span><span style=display:flex><span>aws eks create-access-entry <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name meu-cluster-spoke <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --principal-arn arn:aws:iam::HUB_ACCOUNT_ID:role/ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --type STANDARD
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Associar policy de admin (simplificado para lab)</span>
+</span></span><span style=display:flex><span>aws eks associate-access-policy <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name meu-cluster-spoke <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --principal-arn arn:aws:iam::HUB_ACCOUNT_ID:role/ArgoCD-Capability-Role <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --access-scope type<span style=color:#f92672>=</span>cluster
+</span></span></code></pre></div><p><strong>3. Registrar cluster spoke no ArgoCD (conta hub)</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Obter ARN do cluster spoke</span>
+</span></span><span style=display:flex><span>SPOKE_ARN<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>aws eks describe-cluster <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --name meu-cluster-spoke <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --profile conta-spoke <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --query <span style=color:#e6db74>&#39;cluster.arn&#39;</span> --output text<span style=color:#66d9ef>)</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Secret</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cluster-spoke-contab</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>argocd.argoproj.io/secret-type</span>: <span style=color:#ae81ff>cluster</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>env</span>: <span style=color:#ae81ff>prod</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>account</span>: <span style=color:#ae81ff>spoke</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>type</span>: <span style=color:#ae81ff>Opaque</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>stringData</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>spoke-prod</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:SPOKE_ACCOUNT_ID:cluster/meu-cluster-spoke</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl apply -f cluster-spoke.yaml
+</span></span></code></pre></div><p><strong>4. Validar registro</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Na UI: Settings &gt; Clusters - o cluster spoke deve aparecer como Connected</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Via CLI:</span>
+</span></span><span style=display:flex><span>argocd cluster list
+</span></span></code></pre></div><p><strong>5. Deploy de aplicação no cluster spoke</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>argoproj.io/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Application</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>app-cross-account</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>argocd</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>project</span>: <span style=color:#ae81ff>default</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>source</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>repoURL</span>: <span style=color:#ae81ff>https://github.com/argoproj/argocd-example-apps.git</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>path</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>targetRevision</span>: <span style=color:#ae81ff>HEAD</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>spoke-prod</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>guestbook</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>syncPolicy</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>automated</span>: {}
+</span></span><span style=display:flex><span>    <span style=color:#f92672>syncOptions</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>CreateNamespace=true</span>
+</span></span></code></pre></div><h3 id=por-que-não-precisa-de-vpc-peering>Por que não precisa de VPC peering</h3><p>O ArgoCD EKS Capability roda no control plane da AWS, não nos seus worker nodes. A AWS gerencia a conectividade entre o serviço e os clusters alvo - incluindo clusters com API endpoint 100% privado. Isso elimina toda a complexidade de networking que seria necessária com ArgoCD self-managed.</p><h3 id=produção-least-privilege-no-access-entry>Produção: least-privilege no Access Entry</h3><p>Em vez de <code>AmazonEKSClusterAdminPolicy</code>, crie um ClusterRole restrito:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>rbac.authorization.k8s.io/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>ClusterRole</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>argocd-deploy</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>rules</span>:
+</span></span><span style=display:flex><span>- <span style=color:#f92672>apiGroups</span>: [<span style=color:#e6db74>&#34;apps&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>]
+</span></span><span style=display:flex><span>  <span style=color:#f92672>resources</span>: [<span style=color:#e6db74>&#34;deployments&#34;</span>, <span style=color:#e6db74>&#34;services&#34;</span>, <span style=color:#e6db74>&#34;configmaps&#34;</span>, <span style=color:#e6db74>&#34;namespaces&#34;</span>]
+</span></span><span style=display:flex><span>  <span style=color:#f92672>verbs</span>: [<span style=color:#e6db74>&#34;get&#34;</span>, <span style=color:#e6db74>&#34;list&#34;</span>, <span style=color:#e6db74>&#34;watch&#34;</span>, <span style=color:#e6db74>&#34;create&#34;</span>, <span style=color:#e6db74>&#34;update&#34;</span>, <span style=color:#e6db74>&#34;patch&#34;</span>, <span style=color:#e6db74>&#34;delete&#34;</span>]
+</span></span></code></pre></div></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Configurar Access Entries com ClusterRole customizado por namespace para least-privilege real em produção</li><li>Usar AWS Organizations para automatizar a criação de Access Entries em novos clusters spoke</li><li>Combinar com o desafio de Fleet Management para ver como cross-account funciona em escala</li></ul></article></section>
+<section id="desafio8"><h1>Desafio 8: Troubleshooting - Drift, Sync Failure e Health Degraded</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Diagnosticar e resolver três cenários reais de falha no ArgoCD EKS Capabilities: drift manual no cluster, sync failure por permissão insuficiente, e aplicação com health degraded.</p><h2 id=contexto>Contexto</h2><p>O ArgoCD detecta e corrige automaticamente desvios entre o estado desejado (Git) e o estado real (cluster). Mas quando algo falha, saber onde olhar é a diferença entre resolver em 5 minutos ou passar horas no escuro.</p><p>No EKS Capabilities, algumas ferramentas de debug do self-managed não estão disponíveis - você não tem acesso direto aos logs do ArgoCD controller, não pode editar <code>argocd-cm</code>, e o sync timeout é fixo em 120 segundos. O debug é feito via UI do EKS Console, <code>kubectl</code> no cluster alvo, e os eventos do Kubernetes.</p><blockquote><p><strong>Referência:</strong> <a href=https://docs.aws.amazon.com/eks/latest/userguide/argocd-comparison.html>Comparing EKS Capability for Argo CD to self-managed Argo CD</a> - lista completa de features não disponíveis no managed capability.</p></blockquote><p>Os três cenários abaixo são independentes. Tente resolver cada um antes de abrir a solução.</p><hr><h2 id=cenário-1-drift-detection>Cenário 1: Drift Detection</h2><p><strong>Situação:</strong> Uma aplicação está <code>Synced</code> e <code>Healthy</code>. Um desenvolvedor faz uma mudança manual direta no cluster (<code>kubectl edit deployment</code>). O que acontece e como reverter?</p><p><strong>Dica:</strong> O ArgoCD EKS Capability faz polling a cada 6 minutos por padrão. Se você configurou webhook no desafio anterior, a detecção é imediata.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><p><strong>O que acontece:</strong> O ArgoCD detecta o drift no próximo ciclo de polling e muda a aplicação para <code>OutOfSync</code>.</p><p><strong>Como ver o drift na UI:</strong></p><ul><li>Application > <code>App Diff</code> - mostra exatamente o que mudou no cluster vs Git</li><li>Resources com ícone de alerta indicam divergência</li></ul><p><strong>Reverter o drift:</strong></p><p>Se <code>selfHeal: true</code> estiver no syncPolicy, o ArgoCD reverte automaticamente. Se não:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Forçar sync para reverter ao estado do Git</span>
+</span></span><span style=display:flex><span>argocd app sync minha-app --force
+</span></span></code></pre></div><p><strong>Prevenir drift em produção:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>syncPolicy</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>automated</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>prune</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>selfHeal</span>: <span style=color:#66d9ef>true</span>
+</span></span></code></pre></div></div></details><hr><h2 id=cenário-2-sync-failure-por-permissão>Cenário 2: Sync Failure por Permissão</h2><p><strong>Situação:</strong> Você cria uma Application que tenta criar um <code>ClusterRole</code>. O sync falha com erro de permissão. O AppProject está configurado com <code>clusterResourceWhitelist</code> vazio.</p><p><strong>Dica:</strong> A mensagem de erro exata aparece na UI do ArgoCD ao expandir o recurso com falha em <code>Sync Status</code>.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><p><strong>Diagnóstico:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Ver eventos de sync</span>
+</span></span><span style=display:flex><span>kubectl get events -n argocd --sort-by<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;.lastTimestamp&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Ver detalhes da application</span>
+</span></span><span style=display:flex><span>kubectl describe application minha-app -n argocd
+</span></span></code></pre></div><p><strong>Causa raiz:</strong> <code>clusterResourceWhitelist: []</code> bloqueia recursos cluster-scoped (ClusterRole, ClusterRoleBinding, Namespace, etc.).</p><p><strong>Correção no AppProject:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>clusterResourceWhitelist</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>group</span>: <span style=color:#e6db74>&#34;rbac.authorization.k8s.io&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#e6db74>&#34;ClusterRole&#34;</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>group</span>: <span style=color:#e6db74>&#34;rbac.authorization.k8s.io&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>kind</span>: <span style=color:#e6db74>&#34;ClusterRoleBinding&#34;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl apply -f project-corrigido.yaml
+</span></span><span style=display:flex><span>argocd app sync minha-app
+</span></span></code></pre></div></div></details><hr><h2 id=cenário-3-health-degraded>Cenário 3: Health Degraded</h2><p><strong>Situação:</strong> Uma Application está <code>Synced</code> mas <code>Degraded</code>. O deployment foi aplicado mas os pods não sobem. Como diagnosticar via ArgoCD e via kubectl?</p><p><strong>Dica:</strong> <code>Synced</code> significa que o ArgoCD aplicou o manifesto com sucesso. <code>Degraded</code> significa que o Kubernetes não conseguiu subir os pods - são problemas diferentes.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><p><strong>Diagnóstico na UI do ArgoCD:</strong></p><ul><li>Application > clicar no recurso <code>Deployment</code> > aba <code>Events</code></li><li>Pods com <code>ImagePullBackOff</code>, <code>CrashLoopBackOff</code>, <code>Pending</code> aparecem em vermelho</li></ul><p><strong>Diagnóstico via kubectl:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl get pods -n meu-namespace
+</span></span><span style=display:flex><span>kubectl describe pod NOME_DO_POD -n meu-namespace
+</span></span><span style=display:flex><span>kubectl logs NOME_DO_POD -n meu-namespace --previous
+</span></span></code></pre></div><p><strong>Causas comuns:</strong></p><table><thead><tr><th>Status</th><th>Causa provável</th><th>Correção</th></tr></thead><tbody><tr><td><code>ImagePullBackOff</code></td><td>Imagem não existe ou sem permissão no ECR</td><td>Corrigir tag no Git ou adicionar permissão ECR na node role</td></tr><tr><td><code>CrashLoopBackOff</code></td><td>Aplicação crashando na inicialização</td><td>Ver logs com <code>--previous</code>, corrigir config/env vars</td></tr><tr><td><code>Pending</code></td><td>Sem recursos no cluster</td><td>Escalar node group ou ajustar requests/limits</td></tr><tr><td><code>OOMKilled</code></td><td>Limite de memória atingido</td><td>Aumentar <code>resources.limits.memory</code> no manifesto</td></tr></tbody></table><p><strong>Diferença importante no EKS Capabilities:</strong></p><p>No self-managed você teria acesso direto aos logs do <code>argocd-application-controller</code>. No EKS Capabilities o debug é via:</p><ul><li>UI do EKS Console</li><li><code>kubectl describe application</code> e eventos do Kubernetes</li><li>CloudTrail para auditoria das chamadas de API do ArgoCD</li></ul></div></details><h2 id=próximos-passos>Próximos Passos</h2><ul><li>Implementar health checks customizados para CRDs e recursos não-padrão</li><li>Integrar CloudTrail com CloudWatch para alertas em sync failures recorrentes</li><li>Explorar o desafio de Fleet Management para ver como troubleshooting escala em ambientes multi-cluster</li></ul></article></section>
+<section id="desafio9"><h1>Desafio 9: Fleet Management com kro + ACK + ArgoCD</h1>
+<article><h2 id=objetivo>Objetivo</h2><p>Implementar uma arquitetura hub-spoke para gerenciamento de fleet de clusters EKS usando as três tecnologias juntas: <strong>kro</strong> para orquestrar a criação dos clusters, <strong>ACK</strong> para provisionar os recursos AWS, e <strong>ArgoCD EKS Capability</strong> para bootstrapar e gerenciar os addons via GitOps.</p><h2 id=contexto>Contexto</h2><p>Este é o desafio final - ele integra tudo que foi visto nos desafios anteriores numa arquitetura de produção real.</p><p>O exemplo oficial do kro demonstra exatamente esse padrão: um cluster de gerenciamento (hub) com as três EKS Capabilities habilitadas provisiona e bootstrapa clusters de workload (spokes) de forma totalmente declarativa e GitOps.</p><p><img src=https://raw.githubusercontent.com/kubernetes-sigs/kro/main/examples/aws/eks-cluster-mgmt/docs/eks-cluster-mgmt-central.drawio.png alt="Arquitetura hub-spoke de fleet management com kro, ACK e ArgoCD"></p><h2 id=pré-requisitos>Pré-requisitos</h2><ul><li>Conta AWS de gerenciamento (hub) com AWS Identity Center configurado</li><li>Uma ou mais contas spoke (pode reusar a mesma conta para testes)</li><li>GitHub account com token para o repositório GitOps</li><li>Terraform CLI, AWS CLI v2.32.27+, ArgoCD CLI, GitHub CLI</li></ul><hr><h2 id=fase-1-preparar-o-repositório-gitops>Fase 1: Preparar o repositório GitOps</h2><p>Configure as variáveis de ambiente, clone o repositório do kro, crie seu repositório GitOps privado no GitHub e popule com os arquivos do exemplo.</p><p><strong>Dica:</strong> O <code>WORKING_REPO</code> é referenciado em configs do Terraform e GitOps - mantenha o nome padrão <code>eks-cluster-mgmt</code>.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export KRO_REPO_URL<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;https://github.com/kubernetes-sigs/kro.git&#34;</span>
+</span></span><span style=display:flex><span>export WORKING_REPO<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;eks-cluster-mgmt&#34;</span>
+</span></span><span style=display:flex><span>export MGMT_ACCOUNT_ID<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>aws sts get-caller-identity --output text --query Account<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>export AWS_REGION<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;us-east-1&#34;</span>
+</span></span><span style=display:flex><span>export WORKSPACE_PATH<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$HOME<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>export GITHUB_ORG_NAME<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;seu-usuario-github&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>git clone $KRO_REPO_URL $WORKSPACE_PATH/kro
+</span></span><span style=display:flex><span>gh repo create $WORKING_REPO --private
+</span></span><span style=display:flex><span>gh repo clone $WORKING_REPO $WORKSPACE_PATH/$WORKING_REPO
+</span></span><span style=display:flex><span>cp -r $WORKSPACE_PATH/kro/examples/aws/eks-cluster-mgmt/* $WORKSPACE_PATH/$WORKING_REPO/
+</span></span></code></pre></div><p>Edite <code>terraform/hub/terraform.tfvars</code> com seu <code>git_org_name</code> e <code>accounts_ids</code> (use o ID da conta de gerenciamento se não tiver contas spoke separadas).</p><p>Se quiser usar múltiplas contas spoke, edite também:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># accounts_ids no tfvars aceita lista de IDs das contas spoke</span>
+</span></span><span style=display:flex><span>code $WORKSPACE_PATH/$WORKING_REPO/terraform/hub/terraform.tfvars
+</span></span></code></pre></div><p>Commit e push inicial:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>cd $WORKSPACE_PATH/$WORKING_REPO
+</span></span><span style=display:flex><span>git add . <span style=color:#f92672>&amp;&amp;</span> git commit -s -m <span style=color:#e6db74>&#34;initial commit&#34;</span> <span style=color:#f92672>&amp;&amp;</span> git push
+</span></span></code></pre></div></div></details><hr><h2 id=fase-2-provisionar-o-cluster-hub-com-terraform>Fase 2: Provisionar o cluster hub com Terraform</h2><p>Aplique o Terraform para criar o cluster hub com as IAM Roles necessárias para cada Capability. O Terraform <strong>não</strong> cria as Capabilities - isso é feito na próxima fase via CLI.</p><p><strong>Dica:</strong> O <code>install.sh</code> executa <code>terraform init</code>, <code>plan</code> e <code>apply</code>. Revise o plan antes de confirmar - ele cria VPC, EKS cluster, IAM roles e mais.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>cd $WORKSPACE_PATH/$WORKING_REPO/terraform/hub
+</span></span><span style=display:flex><span>./install.sh
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Exportar outputs para as próximas fases</span>
+</span></span><span style=display:flex><span>export CLUSTER_NAME<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>terraform output -raw cluster_name<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>export ACK_CONTROLLER_ROLE_ARN<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>terraform output -raw ack_controller_role_arn<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>export KRO_CONTROLLER_ROLE_ARN<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>terraform output -raw kro_controller_role_arn<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>export ARGOCD_CONTROLLER_ROLE_ARN<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>terraform output -raw argocd_controller_role_arn<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;Cluster: </span>$CLUSTER_NAME<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;ACK Role: </span>$ACK_CONTROLLER_ROLE_ARN<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;kro Role: </span>$KRO_CONTROLLER_ROLE_ARN<span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;ArgoCD Role: </span>$ARGOCD_CONTROLLER_ROLE_ARN<span style=color:#e6db74>&#34;</span>
+</span></span></code></pre></div><p>Configurar kubectl:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
+</span></span><span style=display:flex><span>kubectl get nodes
+</span></span></code></pre></div></div></details><hr><h2 id=fase-3-criar-as-três-eks-capabilities>Fase 3: Criar as três EKS Capabilities</h2><p>Habilite ACK, kro e ArgoCD como EKS Capabilities no cluster hub. Cada uma requer a IAM Role criada pelo Terraform na fase anterior.</p><p><strong>Dica:</strong> O ArgoCD requer AWS Identity Center configurado na conta. Você precisará do ARN da instância IDC e do ID do usuário que terá acesso admin ao ArgoCD.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># ACK</span>
+</span></span><span style=display:flex><span>aws eks create-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --region <span style=color:#e6db74>${</span>AWS_REGION<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --capability-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span>-ack <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --type ACK <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-arn <span style=color:#e6db74>${</span>ACK_CONTROLLER_ROLE_ARN<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --delete-propagation-policy RETAIN
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># kro</span>
+</span></span><span style=display:flex><span>aws eks create-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --region <span style=color:#e6db74>${</span>AWS_REGION<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --capability-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span>-kro <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --type KRO <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-arn <span style=color:#e6db74>${</span>KRO_CONTROLLER_ROLE_ARN<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --delete-propagation-policy RETAIN
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ArgoCD - obter dados do Identity Center</span>
+</span></span><span style=display:flex><span>export IDC_INSTANCE_ARN<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;arn:aws:sso:::instance/ssoins-XXXXXXXX&#39;</span>
+</span></span><span style=display:flex><span>export IDC_USER_ID<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX&#39;</span>
+</span></span><span style=display:flex><span>export IDC_REGION<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;us-east-1&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>aws eks create-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --region <span style=color:#e6db74>${</span>AWS_REGION<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --capability-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span>-argocd <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --type ARGOCD <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --role-arn <span style=color:#e6db74>${</span>ARGOCD_CONTROLLER_ROLE_ARN<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --delete-propagation-policy RETAIN <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --configuration <span style=color:#e6db74>&#39;{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;argoCd&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;awsIdc&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;idcInstanceArn&#34;: &#34;&#39;</span><span style=color:#e6db74>${</span>IDC_INSTANCE_ARN<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;idcRegion&#34;: &#34;&#39;</span><span style=color:#e6db74>${</span>IDC_REGION<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;rbacRoleMappings&#34;: [{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;role&#34;: &#34;ADMIN&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;identities&#34;: [{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;id&#34;: &#34;&#39;</span><span style=color:#e6db74>${</span>IDC_USER_ID<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;type&#34;: &#34;SSO_USER&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        }]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      }]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }&#39;</span>
+</span></span></code></pre></div><p>Aguardar todas as Capabilities ficarem <code>ACTIVE</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#66d9ef>for</span> cap in ack kro argocd; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  echo -n <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>cap<span style=color:#e6db74>}</span><span style=color:#e6db74>: &#34;</span>
+</span></span><span style=display:flex><span>  aws eks describe-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --region <span style=color:#e6db74>${</span>AWS_REGION<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --cluster-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --capability-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span>-<span style=color:#e6db74>${</span>cap<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --query <span style=color:#e6db74>&#39;capability.status&#39;</span> --output text
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span>
+</span></span></code></pre></div></div></details><hr><h2 id=fase-4-configurar-argocd-e-bootstrapar-o-hub>Fase 4: Configurar ArgoCD e bootstrapar o hub</h2><p>Obtenha a URL do ArgoCD, gere um token de acesso e registre o repositório GitOps. Em seguida, aplique o App of Apps que inicia toda a automação GitOps.</p><p><strong>Dica:</strong> O token é gerado na UI do ArgoCD em Settings → Accounts → admin → Generate New Token. A URL do ArgoCD está disponível no EKS Console em Clusters → Capabilities → Argo CD.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Obter URL do ArgoCD</span>
+</span></span><span style=display:flex><span>export ARGOCD_SERVER<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>aws eks describe-capability <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --cluster-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --capability-name <span style=color:#e6db74>${</span>CLUSTER_NAME<span style=color:#e6db74>}</span>-argocd <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --query <span style=color:#e6db74>&#39;capability.configuration.argoCd.serverUrl&#39;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --output text --region <span style=color:#e6db74>${</span>AWS_REGION<span style=color:#e6db74>}</span><span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>export ARGOCD_SERVER<span style=color:#f92672>=</span><span style=color:#e6db74>${</span>ARGOCD_SERVER#https://<span style=color:#e6db74>}</span>
+</span></span><span style=display:flex><span>export ARGOCD_OPTS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;--grpc-web&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;ArgoCD URL: https://</span><span style=color:#e6db74>${</span>ARGOCD_SERVER<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span></code></pre></div><p>Gere o token na UI e configure:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export ARGOCD_AUTH_TOKEN<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&lt;token-gerado-na-ui&gt;&#34;</span>
+</span></span><span style=display:flex><span>export GITHUB_TOKEN<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&lt;seu-github-token&gt;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Registrar repositório GitOps</span>
+</span></span><span style=display:flex><span>argocd repo add https://github.com/$GITHUB_ORG_NAME/$WORKING_REPO.git <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --username $GITHUB_ORG_NAME <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --password $GITHUB_TOKEN <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --upsert --name github
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Aplicar App of Apps - inicia toda a automação</span>
+</span></span><span style=display:flex><span>kubectl apply -f $WORKSPACE_PATH/$WORKING_REPO/terraform/hub/bootstrap/applicationsets.yaml
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Verificar ApplicationSets criados</span>
+</span></span><span style=display:flex><span>kubectl get applicationsets -n argocd
+</span></span></code></pre></div></div></details><hr><h2 id=fase-5-provisionar-cluster-spoke-via-kro>Fase 5: Provisionar cluster spoke via kro</h2><p>Configure as contas spoke com as IAM Roles necessárias para o ACK cross-account, declare o cluster spoke no repositório GitOps e observe o kro + ACK provisionando tudo automaticamente.</p><p><strong>Dica:</strong> Mesmo usando uma única conta, o script <code>create_ack_workload_roles.sh</code> precisa ser executado - ele cria as roles que o ACK usa para provisionar recursos na conta spoke.</p><details><summary>💡 Ver solução</summary><div style=margin-top:10px><p><strong>Configurar conta spoke:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export AWS_PROFILE<span style=color:#f92672>=</span>spoke_account1
+</span></span><span style=display:flex><span>cd $WORKSPACE_PATH/$WORKING_REPO/scripts
+</span></span><span style=display:flex><span>./create_ack_workload_roles.sh
+</span></span></code></pre></div><p><strong>Declarar o cluster spoke no GitOps:</strong></p><p>Edite <code>fleet/kro-values/tenants/tenant1/kro-clusters/values.yaml</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>workload-cluster1</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>managementAccountId</span>: <span style=color:#e6db74>&#34;MGMT_ACCOUNT_ID&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>accountId</span>: <span style=color:#e6db74>&#34;SPOKE_ACCOUNT_ID&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>tenant</span>: <span style=color:#e6db74>&#34;tenant1&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>k8sVersion</span>: <span style=color:#e6db74>&#34;1.32&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>workloads</span>: <span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>gitops</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>addonsRepoUrl</span>: <span style=color:#e6db74>&#34;https://github.com/SEU_USUARIO/eks-cluster-mgmt&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>fleetRepoUrl</span>: <span style=color:#e6db74>&#34;https://github.com/SEU_USUARIO/eks-cluster-mgmt&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>platformRepoUrl</span>: <span style=color:#e6db74>&#34;https://github.com/SEU_USUARIO/eks-cluster-mgmt&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>workloadRepoUrl</span>: <span style=color:#e6db74>&#34;https://github.com/SEU_USUARIO/eks-cluster-mgmt&#34;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>cd $WORKSPACE_PATH/$WORKING_REPO
+</span></span><span style=display:flex><span>git add . <span style=color:#f92672>&amp;&amp;</span> git commit -s -m <span style=color:#e6db74>&#34;add workload-cluster1&#34;</span> <span style=color:#f92672>&amp;&amp;</span> git push
+</span></span></code></pre></div><p><strong>Acompanhar provisionamento:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># kro orquestrando a criação</span>
+</span></span><span style=display:flex><span>kubectl get EksClusterwithvpcs -A
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ACK criando recursos AWS</span>
+</span></span><span style=display:flex><span>kubectl get vpcs.ec2.services.k8s.aws -A
+</span></span><span style=display:flex><span>kubectl get clusters.eks.services.k8s.aws -A
+</span></span></code></pre></div><p>Quando <code>STATE=ACTIVE</code>, conectar ao spoke e validar addons:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>export AWS_PROFILE<span style=color:#f92672>=</span>spoke_account1
+</span></span><span style=display:flex><span>aws eks update-kubeconfig --name workload-cluster1 --region us-east-1
+</span></span><span style=display:flex><span>kubectl get pods -A
+</span></span></code></pre></div></div></details><hr><h2 id=conclusão>Conclusão</h2><p>Você implementou uma plataforma completa de fleet management onde um único cluster hub, com três EKS Capabilities gerenciadas pela AWS, provisiona e bootstrapa clusters de workload de forma totalmente declarativa.</p><p>O ciclo completo é GitOps do início ao fim: um <code>git push</code> com a declaração de um novo cluster dispara kro para orquestrar, ACK para provisionar na AWS, e ArgoCD para instalar os addons - sem nenhuma intervenção manual após a configuração inicial.</p><p>Essa é a arquitetura que times de Platform Engineering usam para escalar de 5 para 50 clusters sem aumentar a equipe.</p><h2 id=recursos-adicionais>Recursos Adicionais</h2><p>Problemas comuns que clientes encontram nessa arquitetura:</p><ul><li><a href=https://docs.aws.amazon.com/eks/latest/userguide/ack-troubleshooting.html>Troubleshoot issues with ACK capabilities</a> - Capability ACTIVE mas recursos não sendo criados, recursos criados na AWS mas não aparecendo no Kubernetes, problemas de cross-account</li><li><a href=https://docs.aws.amazon.com/eks/latest/userguide/capabilities-security.html#additional-kubernetes-permissions>Additional Kubernetes permissions for EKS Capabilities</a> - Permissões Kubernetes adicionais além das concedidas automaticamente pelo Access Entry, necessárias para casos como ACK lendo Secrets ou kro criando recursos customizados</li></ul><blockquote><p><strong>Referência oficial:</strong> <a href=https://github.com/kubernetes-sigs/kro/blob/main/examples/aws/eks-cluster-mgmt/README.md>Amazon EKS cluster management using kro & ACK</a></p></blockquote></article></section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.querySelector('code')){
+    var btn=document.createElement('button');btn.className='copy-btn';btn.textContent='Copy';
+    btn.onclick=function(){navigator.clipboard.writeText(pre.querySelector('code').textContent);btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},1500);};
+    pre.style.position='relative';pre.appendChild(btn);
+  }
+});
+var secs=document.querySelectorAll('section[id]');var links=document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll',function(){var top=window.scrollY+80;secs.forEach(function(s){if(s.offsetTop<=top&&s.offsetTop+s.offsetHeight>top){links.forEach(function(l){l.classList.remove('active')});var a=document.querySelector('.sidebar a[href="#'+s.id+'"]');if(a)a.classList.add('active');}});});
+</script>
+</body>
+</html>
