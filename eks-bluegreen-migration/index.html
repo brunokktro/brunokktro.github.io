@@ -93,9 +93,9 @@ code{background:#2a2a2a;color:#e8d5a3;padding:2px 6px;border-radius:4px;font-siz
 <!-- ===== INTRO ===== -->
 <section id="intro">
 <h1>Introdução</h1>
-<p>Nesta demonstração, vamos mostrar como migrar entre dois clusters Amazon EKS de versoes diferentes <strong>sem nenhum downtime</strong>, usando uma abordagem blue/green com GitOps (ArgoCD) e Route53 weighted routing.</p>
+<p>Nesta demonstração, vamos mostrar como migrar entre dois clusters Amazon EKS de versões diferentes <strong>sem nenhum downtime</strong>, usando uma abordagem blue/green com GitOps (ArgoCD) e Route53 weighted routing.</p>
 
-<div class="callout callout-info"><strong>Cenário</strong>Imagine que você tem um cluster EKS na versão 1.34 (duas versoes atras). O upgrade in-place de control plane e uma "one-way door" - não existe rollback. E se fosse um EKS on Outposts Local Cluster v1, nem existiria o botao de upgrade pra v2. A solução: não vamos atualizar o cluster velho. Vamos <strong>substituir ele sem que o usuário perceba</strong>.</div>
+<div class="callout callout-info"><strong>Cenário</strong>Imagine que você tem um cluster EKS na versão 1.34 (duas versões atras). O upgrade in-place de control plane e uma "one-way door" - não existe rollback. E se fosse um EKS on Outposts Local Cluster v1, nem existiria o botao de upgrade pra v2. A solução: não vamos atualizar o cluster velho. Vamos <strong>substituir ele sem que o usuário perceba</strong>.</div>
 
 <h2>O que você vai ver</h2>
 <ul>
@@ -163,7 +163,7 @@ r = json.load(urllib.request.urlopen('http://app.bluegreen.lab/'))
 print(json.dumps(r, indent=2))"</code></pre>
 <div class="expected"><code>{"cluster": "eks-blue", "message": "hello from the eks-blue cluster"}</code></div>
 
-<div class="callout callout-warn"><strong>Ponto-chave para o cliente</strong>Este cluster está 2 versoes atras. O upgrade in-place de control plane EKS não tem rollback. Em Outposts Local Clusters v1, nem existe botao de upgrade pra v2. Vamos resolver dos dois jeitos: não atualizar, e sim SUBSTITUIR - sem que o usuário perceba.</div>
+<div class="callout callout-warn"><strong>Ponto-chave</strong>Este cluster está 2 versões atras. O upgrade in-place de control plane EKS não tem rollback. Em Outposts Local Clusters v1, nem existe botao de upgrade pra v2. Vamos resolver dos dois jeitos: não atualizar, e sim SUBSTITUIR - sem que o usuário perceba.</div>
 </section>
 
 <!-- ===== FASE 2 ===== -->
@@ -191,7 +191,7 @@ r = json.load(urllib.request.urlopen('http://demo-app.demo.svc/'))
 print(json.dumps(r, indent=2))"</code></pre>
 <div class="expected"><code>{"cluster": "eks-green", "message": "hello from the eks-green cluster"}</code></div>
 
-<div class="callout callout-success"><strong>Ponto-chave</strong>O cluster novo está 100% funcional - mesma aplicação, mesmo repo Git, validado de ponta a ponta. E o usuário final nem sabe que ele existe. Weight 0. Zero risco ate aqui.</div>
+<div class="callout callout-success"><strong>Ponto-chave</strong>O cluster novo está 100% funcional - mesma aplicação, mesmo repo Git, validado de ponta a ponta. E o usuário final nem sabe que ele existe. Weight 0. Zero risco até aqui.</div>
 </section>
 
 <!-- ===== FASE 3 ===== -->
@@ -287,7 +287,7 @@ git add -A && git commit -m "ROLLBACK: blue=100 green=0" && git push</code></pre
 <div class="callout callout-info"><strong>Duas altitudes</strong>
 <ul>
 <li><strong>Entre clusters:</strong> Route53 weighted (o que acabamos de ver) - migração de versão do cluster</li>
-<li><strong>Dentro do cluster:</strong> Argo Rollouts canary - deploy de novas versoes do app no dia-a-dia</li>
+<li><strong>Dentro do cluster:</strong> Argo Rollouts canary - deploy de novas versões do app no dia-a-dia</li>
 </ul>
 </div>
 
@@ -344,7 +344,7 @@ kargo promote --project bluegreen-migration --freight $FREIGHT --stage cutover</
 <ul>
 <li>Migração zero-downtime entre clusters EKS via blue/green + GitOps</li>
 <li>Rollback em menos de 2 minutos (um commit)</li>
-<li>O cluster velho e a rede de seguranca ate ser destruido</li>
+<li>O cluster velho e a rede de seguranca até ser destruido</li>
 <li>Progressive delivery em duas altitudes (Rollouts + Kargo)</li>
 </ul>
 
@@ -362,7 +362,7 @@ kargo promote --project bluegreen-migration --freight $FREIGHT --stage cutover</
 <li>Adaptar o front-door weighted pro seu edge (F5, HAProxy, Global Accelerator)</li>
 <li>Adicionar workloads stateful ao pipeline (Velero, replicacao de dados)</li>
 <li>Integrar AnalysisTemplates com suas metricas (Prometheus, CloudWatch)</li>
-<li>Escalar pra múltiplos clusters/regioes com Kargo hub-and-spoke</li>
+<li>Escalar pra múltiplos clusters/regiões com Kargo hub-and-spoke</li>
 </ul>
 </section>
 
