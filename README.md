@@ -16,5 +16,5 @@ Workshop Studio-style, self-paced labs (collapsible tips, copy-paste commands, a
 
 | Tool | Description |
 |------|-------------|
-| [Karpenter UI](https://brunokktro.github.io/karpenter-ui/) | Visual helper for Karpenter. |
+| [Karpenter UI](https://brunokktro.github.io/karpenter-ui/) | Visual builder for Karpenter v1.14.1 manifests, presets, NodePool, EC2NodeClass, NodeOverlay and CapacityBuffer. |
 | [Timer](https://brunokktro.github.io/timer/) | Simple presentation/session timer. |
