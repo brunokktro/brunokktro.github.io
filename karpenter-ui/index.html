@@ -242,6 +242,9 @@
   .validator.valid{background:#0c2818;border-top-color:#1d4f2f;color:#9ce5a8;}
   .validator.errors{background:#2c0f10;border-top-color:#5b1d1f;color:#ffb3a8;}
   .validator.warns{background:#2c2511;border-top-color:#5b4a1d;color:#ffd57a;}
+  .validator.advisory{background:#0f1d30;border-top-color:#24456e;color:#a9cdf4;}
+  .validator .v-tag{display:inline-block;font-family:Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:.04em;padding:0 4px;margin-right:2px;border:1px solid currentColor;border-radius:3px;line-height:1.5;}
+  .validator .v-adv{color:#a9cdf4;}
   .validator .v-hd{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;}
   .validator .v-hd .v-count{font-family:Menlo,Consolas,monospace;font-size:11px;}
   .validator .v-list{margin:4px 0 0;padding-left:18px;list-style:none;}
@@ -3168,17 +3171,22 @@ function kvIssues(list, label, errs){
 // Kubernetes qualified names (label and annotation keys) and label values (apiserver rules)
 const LABEL_VALUE = /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/;
 const DNS_SUBDOMAIN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
-function qualifiedNameOk(k){
-  const m = String(k).match(/^(?:([^/]*)\/)?([^/]*)$/);
+// Qualified name: optional DNS subdomain prefix (<=253, IsDNS1123Subdomain: no per-label limit) + "/" + name (1-63).
+// maxTotal is set only where the CRD declares a maxLength on the whole key (requirement keys: 316).
+function qualifiedNameOk(k, maxTotal){
+  k = String(k);
+  if(maxTotal && k.length > maxTotal) return false;
+  const m = k.match(/^(?:([^/]*)\/)?([^/]*)$/);
   if(!m) return false;
   if(m[1] !== undefined && (m[1] === '' || m[1].length > 253 || !DNS_SUBDOMAIN.test(m[1]))) return false;
   return m[2].length >= 1 && m[2].length <= 63 && /^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$/.test(m[2]);
 }
+const QN_RULE = 'optional DNS subdomain prefix (max 253) + "/" + name of up to 63 alphanumerics, \'-\', \'_\' or \'.\', starting and ending alphanumeric';
 function labelIssues(list, label, errs, keysOnly){
   (list||[]).forEach(x => {
     const k = String(x.k == null ? '' : x.k), v = String(x.v == null ? '' : x.v);
     if(k === '') return;   // reported by kvIssues
-    if(!qualifiedNameOk(k)) errs.push(`${label}: key <code>${esc(k)}</code> is not a valid qualified name (optional DNS subdomain prefix + "/" + up to 63 alphanumerics, '-', '_' or '.', starting and ending alphanumeric).`);
+    if(!qualifiedNameOk(k)) errs.push(`${label}: key <code>${esc(k)}</code> is not a valid qualified name (${QN_RULE}).`);
     if(!keysOnly && (v.length > 63 || !LABEL_VALUE.test(v))) errs.push(`${label}: value "${esc(v)}" of <code>${esc(k)}</code> is not a valid label value (up to 63 alphanumerics, '-', '_' or '.', starting and ending alphanumeric).`);
   });
 }
@@ -3197,7 +3205,16 @@ const isIntStr = v => /^\d+$/.test(String(v).trim());
 const NP_ALLOWED_AWS_KEYS = ['instance-tenancy','capacity-reservation-type','capacity-reservation-id','capacity-reservation-interruptible','ec2nodeclass','instance-encryption-in-transit-supported','instance-category','instance-hypervisor','instance-family','instance-generation','instance-local-nvme','instance-size','instance-cpu','instance-cpu-manufacturer','instance-cpu-sustained-clock-speed-mhz','instance-memory','instance-ebs-bandwidth','instance-network-bandwidth','instance-gpu-name','instance-gpu-manufacturer','instance-gpu-count','instance-gpu-memory','instance-accelerator-name','instance-accelerator-manufacturer','instance-accelerator-count','instance-capability-flex','placement-group-id','placement-group-partition'].map(k=>'karpenter.k8s.aws/'+k);
 const OV_ALLOWED_AWS_KEYS = ['ec2nodeclass','instance-encryption-in-transit-supported','instance-category','instance-hypervisor','instance-family','instance-generation','instance-local-nvme','instance-size','instance-cpu','instance-cpu-manufacturer','instance-cpu-sustained-clock-speed-mhz','instance-memory','instance-ebs-bandwidth','instance-network-bandwidth','instance-gpu-name','instance-gpu-manufacturer','instance-gpu-count','instance-gpu-memory','instance-accelerator-name','instance-accelerator-manufacturer','instance-accelerator-count','instance-capability-flex'].map(k=>'karpenter.k8s.aws/'+k);
 const REQ_VALUE = /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/;
-const PLACEHOLDER = /^<<.+>>$|CLUSTER_NAME/;
+// Whole-value template tokens only: <<NAME>>, CLUSTER_NAME, $VAR, ${VAR}. "my CLUSTER_NAME!" is not a placeholder.
+const PLACEHOLDER = /^(<<[^<>]+>>|CLUSTER_NAME|\$[A-Za-z_][A-Za-z0-9_]*|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/;
+// IAM role / instance profile names embed the token (KarpenterNodeRole-CLUSTER_NAME): detector specific to that field.
+const IAM_PLACEHOLDER = /CLUSTER_NAME|<<[^<>]+>>|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?/;
+const CAPACITY_TYPES = ['spot', 'on-demand', 'reserved'];
+// Lint contract: errs = rejected by the v1.14.1 CRD / apiserver / Karpenter runtime validation (blocks actions);
+// warns = schema-valid but needs action (placeholders start with PH_LABEL); advisories = valid, optional hardening.
+const PH_LABEL = 'PLACEHOLDER (valid schema, replace before apply): ';
+const ADV_VALID = 'valid Karpenter manifest; optional hardening';
+const ADV_AFTER_ERRORS = 'optional hardening after the errors are fixed';
 // CRD patterns for disruption budgets
 const BUDGET_NODES = /^((100|[0-9]{1,2})%|[0-9]+)$/;
 const BUDGET_DURATION = /^((([0-9]+(h|m))|([0-9]+h[0-9]+m))(0s)?)$/;
@@ -3212,7 +3229,7 @@ function checkRequirements(reqs, kind, errs, warns, P){
     const key = String(r.key || '');
     const op = String(r.op || '');
     if(!key){ errs.push(`${tag}: key is empty.`); return; }
-    if(key.length > 316 || !LABEL_KEY.test(key)) errs.push(`${tag}: key <code>${esc(key)}</code> does not match the label key pattern of the CRD.`);
+    if(!LABEL_KEY.test(key) || !qualifiedNameOk(key, 316)) errs.push(`${tag}: key <code>${esc(key)}</code> does not match the label key pattern of the CRD or is not a valid qualified name (max 316 in total; ${QN_RULE}). The CRD or Karpenter runtime validation rejects it.`);
     if(!REQ_OPERATORS.includes(op)) errs.push(`${tag} (${esc(key)}): operator "${esc(op)}" is not one of ${REQ_OPERATORS.join(', ')}.`);
     restrictedKeyErrors(key, kind, tag, errs);
     const vals = (r.values||[]).map(String);
@@ -3225,10 +3242,22 @@ function checkRequirements(reqs, kind, errs, warns, P){
     if((op === 'Exists' || op === 'DoesNotExist') && vals.length) warns.push(`${tag} (${esc(key)}, ${esc(op)}): values are ignored by ${esc(op)}; remove them.`);
     vals.forEach(v=>{
       if(v.length > 63 || !REQ_VALUE.test(v)){
-        if(PLACEHOLDER.test(v)) warns.push(`${tag} (${esc(key)}): value <code>${esc(v)}</code> is a placeholder. Replace it before applying.`);
-        else warns.push(`${tag} (${esc(key)}): value "${esc(v)}" is not a valid Kubernetes label value (alphanumeric, '-', '_', '.', max 63), so no node can match it.`);
+        // Karpenter v1.14.1 RuntimeValidate (ValidateRequirement -> IsValidLabelValue) rejects these values:
+        // the object is stored but the NodePool/NodeOverlay gets ValidationSucceeded=False and is never used.
+        if(PLACEHOLDER.test(v)) warns.push(`${PH_LABEL}${tag} (${esc(key)}): value <code>${esc(v)}</code> is a template placeholder. Replace it with the real value: until then Karpenter runtime validation marks the resource ValidationSucceeded=False.`);
+        else errs.push(`${tag} (${esc(key)}): value "${esc(v)}" is not a valid label value (CRD pattern <code>${REQ_VALUE.source}</code>, max 63). Karpenter v1.14.1 rejects it at runtime (ValidationSucceeded=False), so the resource is never used.`);
       }
     });
+    // Karpenter v1.14.1 validateWellKnownValues (In only): unknown capacity types are ignored while a known one remains;
+    // with no known value left the resource gets ValidationSucceeded=False. Placeholders are reported above.
+    if(key === 'karpenter.sh/capacity-type' && op === 'In' && vals.length){
+      const known = vals.filter(v => CAPACITY_TYPES.includes(v));
+      const unknown = vals.filter(v => !CAPACITY_TYPES.includes(v) && !PLACEHOLDER.test(v));
+      if(unknown.length && !known.length) errs.push(`${tag} (${esc(key)}): no known capacity type in [${CAPACITY_TYPES.join(', ')}] (got ${esc(unknown.join(', '))}). Karpenter v1.14.1 runtime validation fails (ValidationSucceeded=False) because no usable offering remains.`);
+      else if(unknown.length) warns.push(`${tag} (${esc(key)}): unknown capacity type${unknown.length>1?'s':''} ${esc(unknown.join(', '))} ${unknown.length>1?'are':'is'} ignored by Karpenter, which proceeds with ${esc(known.join(', '))}. Remove ${unknown.length>1?'them':'it'} (known: ${CAPACITY_TYPES.join(', ')}).`);
+      const mv = String(r.minValues == null ? '' : r.minValues).trim();
+      if(kind === 'np' && known.length && isIntStr(mv) && +mv >= 1 && known.length < +mv && vals.length >= +mv) errs.push(`${tag} (${esc(key)}): minValues=${mv} but only ${known.length} known capacity type${known.length>1?'s':''} remain${known.length>1?'':'s'}; Karpenter runtime validation fails (ValidationSucceeded=False).`);
+    }
     if(kind === 'np' && r.minValues != null && String(r.minValues).trim() !== ''){
       const mv = String(r.minValues).trim();
       if(!isIntStr(mv) || +mv < 1 || +mv > 50) errs.push(`${tag} (${esc(key)}): minValues must be an integer between 1 and 50 (got "${esc(mv)}").`);
@@ -3246,7 +3275,27 @@ function checkRequirements(reqs, kind, errs, warns, P){
   }
 }
 
-function validateNodePool(np, P, errs, warns){
+// Advisory hints: say what already constrains arch/os instead of a generic risk line (still advisory, never a warning)
+// No architecture inference from instance-type / instance-family lists: a list can mix amd64 and arm64 families
+// (m5 + m6g), and a hand-kept catalog would drift. The hint stays neutral and only describes what the list implies.
+function archHint(np){
+  const pin = (np.requirements||[]).find(r => ['node.kubernetes.io/instance-type','karpenter.k8s.aws/instance-family'].includes(r.key) && r.op === 'In' && (r.values||[]).length);
+  if(pin) return `The architecture follows the <code>${esc(pin.key)}</code> list: Karpenter only launches types in it, and the list can include amd64 and arm64 types. Pin <code>kubernetes.io/arch</code> if your images are single-arch.`;
+  return 'Without it Karpenter can launch amd64 or arm64 nodes (the AMI is resolved per architecture); pin it only if your images are single-arch.';
+}
+const LINUX_FAMILIES = ['AL2','AL2023','Bottlerocket'];
+function osHint(np){
+  const nc = STATE.ec2nodeclass.includeInCombine ? kindObjects('ec2nodeclass').find(x => x.name === np.nodeClassRefName) : null;
+  if(nc){
+    const alias = ((nc.amiSelectorTerms||[]).find(t => t.type === 'alias' || t.alias) || {});
+    const a = String(alias.value || alias.alias || '');
+    const fam = a ? a.split('@')[0] : '';
+    if(['al2','al2023','bottlerocket'].includes(fam)) return `EC2NodeClass <code>${esc(nc.name)}</code> uses the <code>${esc(a)}</code> alias, which only produces Linux nodes.`;
+    if(!a && LINUX_FAMILIES.includes(nc.amiFamily)) return `EC2NodeClass <code>${esc(nc.name)}</code> uses amiFamily ${esc(nc.amiFamily)}, which only produces Linux nodes.`;
+  }
+  return 'The OS follows the AMI family of the referenced EC2NodeClass (Linux for AL2, AL2023 and Bottlerocket); add it only if that class can resolve Windows AMIs.';
+}
+function validateNodePool(np, P, errs, warns, advs){
   if(!np.name) errs.push(`${P}NodePool name is required.`);
   else if(!DNS1123.test(np.name) || np.name.length>63) errs.push(`${P}NodePool name "${esc(np.name)}" is not a valid DNS-1123 label (lowercase, alphanumeric, hyphens, max 63).`);
   kvIssues(np.labels, `${P}metadata.labels`, errs);
@@ -3270,17 +3319,12 @@ function validateNodePool(np, P, errs, warns){
     warns.push(`${P}nodeClassRef.name (<code>${esc(np.nodeClassRefName)}</code>) does not match the EC2NodeClass name${ncNames.length>1?'s':''} (${ncNames.map(n=>`<code>${esc(n)}</code>`).join(', ')}) included in Combine.`);
   }
 
-  if(!np.requirements.length) warns.push(`${P}No requirements defined (emitted as <code>requirements: []</code>, the field is required) - Karpenter will consider all instance types, which is rarely intended.`);
+  if(!np.requirements.length) advs.push(`${P}No requirements (emitted as <code>requirements: []</code>, which the CRD accepts): ${ADV_VALID}. Karpenter may pick any instance type the EC2NodeClass allows; add capacity-type or instance-category constraints if you want to narrow it.`);
   checkRequirements(np.requirements, 'np', errs, warns, P);
   const hasArch = np.requirements.some(r => r.key==='kubernetes.io/arch' && (r.values||[]).length);
   const hasOs   = np.requirements.some(r => r.key==='kubernetes.io/os'   && (r.values||[]).length);
-  if(!hasArch) warns.push(`${P}No <code>kubernetes.io/arch</code> requirement - mixing amd64/arm64 nodes can break workloads without nodeSelectors.`);
-  if(!hasOs)   warns.push(`${P}No <code>kubernetes.io/os</code> requirement - non-linux nodes may sneak in.`);
-  const capReq = np.requirements.find(r => r.key==='karpenter.sh/capacity-type');
-  if(capReq && capReq.values){
-    const invalid = capReq.values.filter(v => !['spot','on-demand','reserved'].includes(v));
-    if(invalid.length) errs.push(`${P}capacity-type values must be in [spot, on-demand, reserved]. Invalid: ${esc(invalid.join(', '))}.`);
-  }
+  if(!hasArch) advs.push(`${P}No <code>kubernetes.io/arch</code> requirement: ${ADV_VALID}, the restriction is optional. ${archHint(np)}`);
+  if(!hasOs)   advs.push(`${P}No <code>kubernetes.io/os</code> requirement: ${ADV_VALID}, the restriction is optional. ${osHint(np)}`);
 
   if(np.expireAfter && !DUR_OR_NEVER.test(np.expireAfter)) errs.push(`${P}expireAfter "${esc(np.expireAfter)}" must match <code>^(([0-9]+(s|m|h))+|Never)$</code> (e.g. 30m, 720h, Never).`);
   if(np.terminationGracePeriod && !DUR_ONLY.test(np.terminationGracePeriod)) errs.push(`${P}terminationGracePeriod "${esc(np.terminationGracePeriod)}" must match <code>^([0-9]+(s|m|h))+$</code> (Never is not allowed).`);
@@ -3303,12 +3347,20 @@ function validateNodePool(np, P, errs, warns){
     });
   });
 
+  // Karpenter v1.14.1 validateTaints: one key+effect set shared by taints and startupTaints, so a pair repeated
+  // inside either list or across both fails runtime validation. Same key with a different effect is valid.
+  const taintSeen = new Map();
   [['taints', np.taints], ['startupTaints', np.startupTaints]].forEach(([f, list]) => (list||[]).forEach((t, i)=>{
     if(!t.key && !t.value && !t.timeAdded) return;
     const tag = `${P}${f}[${i}]`;
     if(!t.key) errs.push(`${tag}: key is required.`);
-    else if(!LABEL_KEY.test(t.key)) errs.push(`${tag}: key "${esc(t.key)}" does not match the taint key pattern.`);
-    if(t.value && !LABEL_KEY.test(t.value)) errs.push(`${tag}: value "${esc(t.value)}" does not match the taint value pattern.`);
+    else if(!LABEL_KEY.test(t.key) || !qualifiedNameOk(t.key)) errs.push(`${tag}: key "${esc(t.key)}" does not match the taint key pattern (qualified name: ${QN_RULE}).`);
+    if(t.value && (!LABEL_KEY.test(t.value) || !qualifiedNameOk(t.value))) errs.push(`${tag}: value "${esc(t.value)}" does not match the taint value pattern (Karpenter validates taint values like keys, as a qualified name: ${QN_RULE}).`);
+    if(t.key){
+      const pair = `${t.key}\u0000${t.effect || ''}`;
+      if(taintSeen.has(pair)) errs.push(`${tag}: duplicate taint key/effect pair <code>${esc(t.key)}:${esc(t.effect || '')}</code> (already in ${esc(taintSeen.get(pair))}). Karpenter v1.14.1 runtime validation rejects it (ValidationSucceeded=False).`);
+      else taintSeen.set(pair, `${f}[${i}]`);
+    }
     if(!['NoSchedule','PreferNoSchedule','NoExecute'].includes(t.effect)) errs.push(`${tag}: invalid effect "${esc(t.effect)}".`);
     if(t.timeAdded && !RFC3339.test(t.timeAdded)) errs.push(`${tag}: timeAdded "${esc(t.timeAdded)}" must be an RFC 3339 date-time.`);
   }));
@@ -3328,7 +3380,7 @@ function validateNodePool(np, P, errs, warns){
     if(['cpu','memory','nodes'].includes(l.k)) errs.push(`${P}limits.${esc(l.k)} is a standard field: use the dedicated input.`);
     if(l.k && !K8S_QUANTITY.test(String(l.v))) errs.push(`${P}limits.${esc(l.k)} "${esc(l.v)}" is not a valid K8s resource quantity.`);
   });
-  if(isStatic && isBlank(np.limitsNodes)) warns.push(`${P}Static NodePool: <code>spec.replicas</code> usually pairs with <code>spec.limits.nodes</code> to cap node count.`);
+  if(isStatic && isBlank(np.limitsNodes)) advs.push(`${P}Static NodePool without <code>spec.limits.nodes</code>: ${ADV_VALID}. <code>spec.replicas</code> sets the count; <code>limits.nodes</code> adds a hard cap on it.`);
 }
 
 function termHasValue(t){ return TERM_ORDER.some(f => t[f] !== undefined); }
@@ -3383,7 +3435,7 @@ function validateTerms(ec, listKey, P, errs, warns){
   }
 }
 
-function validateEC2NodeClass(ec, P, errs, warns){
+function validateEC2NodeClass(ec, P, errs, warns, advs){
   if(!ec.name) errs.push(`${P}EC2NodeClass name is required.`);
   else if(!DNS1123.test(ec.name) || ec.name.length>63) errs.push(`${P}EC2NodeClass name "${esc(ec.name)}" is not a valid DNS-1123 label.`);
   kvIssues(ec.labels, `${P}metadata.labels`, errs);
@@ -3414,13 +3466,13 @@ function validateEC2NodeClass(ec, P, errs, warns){
   validateTerms(ec, 'capacityReservationSelectorTerms', P, errs, warns);
   const placeholders = [];
   ec.subnetSelectorTerms.concat(ec.securityGroupSelectorTerms).forEach(t => (t.tags||[]).forEach(kv => { if(PLACEHOLDER.test(String(kv.v))) placeholders.push(kv.k); }));
-  if(placeholders.length) warns.push(`${P}Selector tag still contains placeholder <code>CLUSTER_NAME</code>. Replace with your real cluster name.`);
+  if(placeholders.length) warns.push(`${PH_LABEL}${P}selector tag still contains <code>CLUSTER_NAME</code>. Replace it with your real cluster name, otherwise no subnet or security group matches.`);
 
   const mode = ec.iamMode === 'instanceProfile' ? 'instanceProfile' : 'role';
   const other = mode === 'role' ? 'instanceProfile' : 'role';
   if(!ec[mode]) errs.push(`${P}Specify exactly one of <code>role</code> or <code>instanceProfile</code>: <code>${mode}</code> is selected but empty.`);
   if(ec[other]) warns.push(`${P}<code>${other}</code> also has a value but <code>${mode}</code> is selected: only <code>${mode}</code> is emitted (the CRD rejects both).`);
-  if(ec[mode] && PLACEHOLDER.test(ec[mode])) warns.push(`${P}${mode} still contains a placeholder (<code>CLUSTER_NAME</code> or <code>&lt;&lt;...&gt;&gt;</code>). Replace it before applying.`);
+  if(ec[mode] && IAM_PLACEHOLDER.test(ec[mode])) warns.push(`${PH_LABEL}${P}${mode} still contains <code>CLUSTER_NAME</code> or <code>&lt;&lt;...&gt;&gt;</code>. Replace it with the real IAM ${mode === 'role' ? 'role' : 'instance profile'} name.`);
 
   kvIssues(ec.tags, `${P}tags`, errs);
   (ec.tags||[]).filter(t=>t.k).forEach(t => { if(EC2_RESTRICTED_TAG(String(t.k))) errs.push(`${P}tags: <code>${esc(t.k)}</code> is a restricted tag key.`); });
@@ -3501,8 +3553,8 @@ function validateEC2NodeClass(ec, P, errs, warns){
   if(!['enabled','disabled'].includes(mo.httpProtocolIPv6)) errs.push(`${P}metadataOptions.httpProtocolIPv6 must be enabled or disabled.`);
   if(!['required','optional'].includes(mo.httpTokens)) errs.push(`${P}metadataOptions.httpTokens must be required or optional.`);
   if(!isIntStr(mo.httpPutResponseHopLimit) || +mo.httpPutResponseHopLimit < 1 || +mo.httpPutResponseHopLimit > 64) errs.push(`${P}metadataOptions.httpPutResponseHopLimit must be an integer between 1 and 64.`);
-  if(mo.httpTokens === 'optional') warns.push(`${P}httpTokens=optional allows IMDSv1. Prefer "required" (IMDSv2) for security.`);
-  if(mo.httpPutResponseHopLimit > 2) warns.push(`${P}httpPutResponseHopLimit=${esc(mo.httpPutResponseHopLimit)} allows pods to reach IMDS through host networking. Use 1 unless you have a specific need.`);
+  if(mo.httpTokens === 'optional') advs.push(`${P}httpTokens=optional: ${ADV_VALID}. It still allows IMDSv1 requests without a session token; prefer "required" (IMDSv2).`);
+  if(+mo.httpPutResponseHopLimit > 2) advs.push(`${P}httpPutResponseHopLimit=${esc(mo.httpPutResponseHopLimit)}: ${ADV_VALID}. Pods in container networks can reach IMDS and the node role credentials; use 1 or 2 unless you need more.`);
 }
 
 function validateNodeOverlay(ov, P, errs, warns){
@@ -3579,9 +3631,11 @@ function validateCapacityBuffer(cb, pt, errs, warns){
     if(!['','Equal','Exists'].includes(t.operator)) errs.push(`tolerations[${i}]: operator must be Equal or Exists (or unset = Equal).`);
     if(t.operator==='Exists' && t.value) errs.push(`tolerations[${i}]: value must be empty when operator is Exists.`);
     if(t.operator!=='Exists' && !t.key) errs.push(`tolerations[${i}]: key is required unless operator is Exists.`);
+    if(t.key && !qualifiedNameOk(t.key)) errs.push(`tolerations[${i}]: key <code>${esc(t.key)}</code> is not a valid qualified name (${QN_RULE}). The API server rejects the PodTemplate.`);
+    if(t.operator!=='Exists' && t.value && (String(t.value).length > 63 || !LABEL_VALUE.test(String(t.value)))) errs.push(`tolerations[${i}]: value "${esc(t.value)}" is not a valid label value (up to 63 alphanumerics, '-', '_' or '.', starting and ending alphanumeric). The API server rejects the PodTemplate.`);
     if(t.effect && !['NoSchedule','PreferNoSchedule','NoExecute'].includes(t.effect)) errs.push(`tolerations[${i}]: invalid effect "${esc(t.effect)}".`);
     if(!isBlank(t.tolerationSeconds) && !/^-?\d+$/.test(String(t.tolerationSeconds))) errs.push(`tolerations[${i}]: tolerationSeconds must be an integer.`);
-    if(!isBlank(t.tolerationSeconds) && t.effect !== 'NoExecute') warns.push(`tolerations[${i}]: tolerationSeconds only applies to NoExecute.`);
+    if(!isBlank(t.tolerationSeconds) && t.effect !== 'NoExecute') errs.push(`tolerations[${i}]: tolerationSeconds requires effect NoExecute (the API server rejects the PodTemplate otherwise).`);
   });
 }
 
@@ -3599,18 +3653,30 @@ function combineErrors(){
 }
 function validate(forceView){
   const view = forceView || STATE.view;
-  const errs = [], warns = [], ok = [];
+  const errs = [], warns = [], advisories = [], ok = [];
   const run = (fn, kind) => {
-    fn(STATE[kind], '', errs, warns);
-    (STATE.extras[kind]||[]).forEach(x => fn(x, `[${esc(x.name||'?')}] `, errs, warns));
+    fn(STATE[kind], '', errs, warns, advisories);
+    (STATE.extras[kind]||[]).forEach(x => fn(x, `[${esc(x.name||'?')}] `, errs, warns, advisories));
   };
   if(view === 'nodepool') run(validateNodePool, 'nodepool');
   else if(view === 'ec2nodeclass') run(validateEC2NodeClass, 'ec2nodeclass');
   else if(view === 'nodeoverlay') run(validateNodeOverlay, 'nodeoverlay');
   else validateCapacityBuffer(STATE.capacitybuffer, STATE.podtemplate, errs, warns);
   tabDuplicates(view).forEach(d => errs.push(`Duplicate <code>${esc(d)}</code>: two documents with the same kind and name would overwrite each other on apply. Download and Combine stay blocked until one is renamed.`));
-  if(!errs.length && !warns.length) ok.push('Manifest is well-formed and ready to apply.');
-  return { errs, warns, ok };
+  // advisories never block and never make the manifest "not ok": they are valid, optional hardening.
+  // With errors in the same scope the manifest is not valid, so the advisory must not claim it is.
+  if(errs.length) advisories.forEach((a, i) => { advisories[i] = a.split(ADV_VALID).join(ADV_AFTER_ERRORS); });
+  if(!errs.length && !warns.length) ok.push(advisories.length ? 'Valid Karpenter manifest; optional hardening listed below.' : 'Manifest is well-formed and ready to apply.');
+  return { errs, warns, advisories, ok };
+}
+const LINT_NOUN = { err: ['error','errors'], warn: ['warning','warnings'], adv: ['advisory','advisories'] };
+const plural = (n, k) => `${n} ${LINT_NOUN[k][n === 1 ? 0 : 1]}`;
+// Every item carries a textual label (not only color): ERROR, WARNING, PLACEHOLDER, ADVISORY
+function lintItem(level, text){
+  let label = level === 'err' ? 'ERROR' : level === 'adv' ? 'ADVISORY' : 'WARNING';
+  if(level === 'warn' && text.startsWith(PH_LABEL)){ label = 'PLACEHOLDER'; text = text.slice('PLACEHOLDER '.length); }
+  const bullet = { err: '&#10005;', warn: '!', adv: 'i' }[level];
+  return `<li data-level="${label.toLowerCase()}"><span class="v-bullet v-${level}" aria-hidden="true">${bullet}</span><span class="v-${level}"><span class="v-tag">${label}</span> ${text}</span></li>`;
 }
 
 function toggleValidator(boxId, open){
@@ -3621,23 +3687,32 @@ function toggleValidator(boxId, open){
   if(hd) hd.setAttribute('aria-expanded', b.classList.contains('collapsed') ? 'false' : 'true');
 }
 function renderValidator(forceView, idSuffix){
-  const { errs, warns, ok } = validate(forceView);
+  const { errs, warns, advisories, ok } = validate(forceView);
   const boxId = 'validatorBox' + (idSuffix || '');
   let cls, header, items = [];
-
+  const advItems = advisories.map(a => lintItem('adv', a));
   if(errs.length){
     cls = 'errors';
+    const v = forceView || STATE.view, inCombine = !!(STATE[v] && STATE[v].includeInCombine);
+    const parts = [plural(errs.length, 'err'), inCombine ? 'blocks Copy, Download and Combine' : 'blocks Copy and Download']
+      .concat(warns.length ? [plural(warns.length, 'warn')] : [], advisories.length ? [plural(advisories.length, 'adv')] : []);
     header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <span>YAML Lint</span>
-                <span class="v-count">${errs.length} error${errs.length>1?'s':''}${warns.length?` &middot; ${warns.length} warning${warns.length>1?'s':''}`:''}</span>`;
-    items = errs.map(e=>`<li><span class="v-bullet v-err">&#10005;</span><span class="v-err">${e}</span></li>`)
-                .concat(warns.map(w=>`<li><span class="v-bullet v-warn">!</span><span class="v-warn">${w}</span></li>`));
+                <span class="v-count">${parts.join(' &middot; ')}</span>`;
+    items = errs.map(e => lintItem('err', e)).concat(warns.map(w => lintItem('warn', w)), advItems);
   } else if(warns.length){
     cls = 'warns';
+    const parts = [plural(warns.length, 'warn'), 'action required'].concat(advisories.length ? [plural(advisories.length, 'adv')] : []);
     header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <span>YAML Lint</span>
-                <span class="v-count">${warns.length} warning${warns.length>1?'s':''}</span>`;
-    items = warns.map(w=>`<li><span class="v-bullet v-warn">!</span><span class="v-warn">${w}</span></li>`);
+                <span class="v-count">${parts.join(' &middot; ')}</span>`;
+    items = warns.map(w => lintItem('warn', w)).concat(advItems);
+  } else if(advisories.length){
+    cls = 'advisory';
+    header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>YAML Lint</span>
+                <span class="v-count">valid &middot; ${plural(advisories.length, 'adv')}</span>`;
+    items = [`<li data-level="valid"><span class="v-bullet v-ok" aria-hidden="true">&check;</span><span class="v-ok">${ADV_VALID}</span></li>`].concat(advItems);
   } else {
     cls = 'valid';
     header = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
